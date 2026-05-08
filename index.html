@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>14 Summits — Pierwsze wejścia na ośmiotysięczniki</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #f0f4f8;
+  --bg2: #e2eaf3;
+  --map-bg: #0b1929;
+  --map-land: #1a3050;
+  --map-land2: #1e3a5f;
+  --map-border: #2a4a72;
+  --navy: #0f2240;
+  --navy2: #1a3560;
+  --orange: #d4541a;
+  --orange-glow: #e8621a;
+  --orange-light: rgba(212,84,26,0.15);
+  --cold-blue: #4a7fb5;
+  --cold-blue-light: #7aacd4;
+  --snow: #f8fafc;
+  --text: #0f2240;
+  --text2: #4a5e7a;
+  --text3: #8094b0;
+  --open: #d4201a;
+  --open-bg: rgba(212,32,26,0.12);
+  --achieved-summer: #1a7fd4;
+  --achieved-winter: #4a5ecc;
+  --achieved-alpine: #2ab05a;
+  --panel-w: 380px;
+  --panel-w-mobile: 100%;
+}
+html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+a { color: inherit; text-decoration: none; }
+
+/* LAYOUT */
+#app { display: flex; flex-direction: column; height: 100%; }
+
+/* HEADER */
+#header {
+  background: var(--navy);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  z-index: 50;
+}
+#header-left { display: flex; align-items: center; gap: 16px; }
+#logo { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+#logo span { color: var(--orange-glow); }
+#tagline { font-size: 11px; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; display: none; }
+@media (min-width: 600px) { #tagline { display: block; } }
+
+#lang-switcher { display: flex; gap: 4px; }
+.lang-btn {
+  background: none; border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5);
+  font-family: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+  padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+}
+.lang-btn:hover { border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.8); }
+.lang-btn.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+
+/* FILTERS */
+#filter-bar {
+  background: var(--navy2);
+  padding: 0 24px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#filter-bar::-webkit-scrollbar { display: none; }
+.filter-label { font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 4px; white-space: nowrap; }
+.filter-btn {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.55); font-family: inherit; font-size: 11px; font-weight: 500;
+  padding: 5px 14px; border-radius: 20px; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+}
+.filter-btn .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.filter-btn:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); }
+.filter-btn.active { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); color: #fff; }
+
+/* MAIN */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* MAP */
+#map-container {
+  flex: 1;
+  background: var(--map-bg);
+  position: relative;
+  overflow: hidden;
+}
+#map-container svg { width: 100%; height: 100%; }
+.country { fill: var(--map-land); stroke: var(--map-border); stroke-width: 0.5; }
+.country-highlight { fill: var(--map-land2); }
+.graticule { fill: none; stroke: rgba(255,255,255,0.03); stroke-width: 0.5; }
+.sphere { fill: #081422; }
+
+/* PEAK MARKERS */
+.peak-marker { cursor: pointer; }
+.peak-outer {
+  transition: all 0.2s;
+}
+.peak-marker:hover .peak-outer { filter: brightness(1.4); }
+.peak-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; r: 14px; }
+  50% { opacity: 0.1; r: 18px; }
+}
+.peak-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  fill: rgba(255,255,255,0.8);
+  pointer-events: none;
+  text-anchor: middle;
+}
+.peak-label.active { fill: #fff; font-weight: 600; }
+
+/* DETAIL PANEL */
+#panel {
+  width: var(--panel-w);
+  background: var(--snow);
+  border-left: 1px solid rgba(15,34,64,0.1);
+  flex-shrink: 0;
+  overflow-y: auto;
+  transform: translateX(var(--panel-w));
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+#panel.open { transform: translateX(0); }
+#panel-header {
+  padding: 24px 24px 16px;
+  background: var(--navy);
+  color: #fff;
+  flex-shrink: 0;
+}
+#panel-close {
+  position: absolute; top: 14px; right: 14px;
+  background: rgba(255,255,255,0.1); border: none; color: #fff;
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+#panel-close:hover { background: rgba(255,255,255,0.2); }
+#panel-peak-name { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 2px; }
+#panel-peak-name-native { font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 12px; }
+#panel-elevation {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--orange); color: #fff;
+  padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;
+}
+#panel-location { margin-top: 8px; font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; text-transform: uppercase; }
+#panel-body { padding: 20px 24px; flex: 1; }
+
+.category-block { margin-bottom: 20px; }
+.category-block:last-child { margin-bottom: 0; }
+.cat-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid rgba(15,34,64,0.08);
+}
+.cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cat-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); }
+.cat-badge {
+  margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 2px 8px; border-radius: 3px; text-transform: uppercase;
+}
+.badge-done { background: rgba(26,127,212,0.12); color: var(--achieved-summer); }
+.badge-winter { background: rgba(74,94,204,0.12); color: var(--achieved-winter); }
+.badge-alpine { background: rgba(42,176,90,0.12); color: var(--achieved-alpine); }
+.badge-open { background: var(--open-bg); color: var(--open); }
+
+.detail-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.detail-row:last-child { margin-bottom: 0; }
+.detail-key { font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+.detail-val { font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.4; }
+.detail-note { font-size: 11px; color: var(--text2); font-style: italic; line-height: 1.5; margin-top: 6px; padding: 8px; background: rgba(15,34,64,0.04); border-radius: 4px; border-left: 3px solid var(--cold-blue); }
+.open-block {
+  background: var(--open-bg); border: 1px dashed rgba(212,32,26,0.3);
+  border-radius: 6px; padding: 12px; text-align: center;
+}
+.open-block .open-label { font-size: 11px; font-weight: 700; color: var(--open); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+.open-block .open-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+/* LEGEND */
+#legend {
+  position: absolute; bottom: 20px; left: 20px;
+  background: rgba(11,25,41,0.92); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 12px 16px;
+  z-index: 10;
+}
+.legend-title { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.65); margin-bottom: 5px; }
+.legend-row:last-child { margin-bottom: 0; }
+.legend-marker { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-open { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--open); flex-shrink: 0; }
+
+/* TOOLTIP */
+#map-tooltip {
+  position: absolute; pointer-events: none;
+  background: rgba(11,25,41,0.95); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #fff;
+  opacity: 0; transition: opacity 0.12s; z-index: 20; white-space: nowrap;
+}
+#map-tooltip .tt-elev { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+/* EMPTY STATE */
+#map-hint {
+  position: absolute; bottom: 20px; right: 20px;
+  font-size: 11px; color: rgba(255,255,255,0.2); letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+/* MOBILE PANEL */
+@media (max-width: 720px) {
+  #panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 100%; max-width: 420px;
+    transform: translateX(100%);
+    z-index: 100; box-shadow: -8px 0 40px rgba(0,0,0,0.4);
+  }
+  #panel.open { transform: translateX(0); }
+  #legend { bottom: 56px; }
+}
+
+/* SCROLL */
+#panel::-webkit-scrollbar { width: 4px; }
+#panel::-webkit-scrollbar-track { background: transparent; }
+#panel::-webkit-scrollbar-thumb { background: rgba(15,34,64,0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header id="header">
+    <div id="header-left">
+      <div id="logo"><span>14</span> Summits</div>
+      <div id="tagline" data-i18n="tagline"></div>
+    </div>
+    <div id="lang-switcher">
+      <button class="lang-btn active" onclick="setLang('pl')">PL</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('np')">नेपाली</button>
+    </div>
+  </header>
+
+  <!-- FILTERS -->
+  <div id="filter-bar">
+    <span class="filter-label" data-i18n="filter-label"></span>
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">
+      <span data-i18n="filter-all"></span>
+    </button>
+    <button class="filter-btn" data-filter="summer" onclick="setFilter('summer')">
+      <span class="dot" style="background:var(--achieved-summer)"></span>
+      <span data-i18n="filter-summer"></span>
+    </button>
+    <button class="filter-btn" data-filter="winter" onclick="setFilter('winter')">
+      <span class="dot" style="background:var(--achieved-winter)"></span>
+      <span data-i18n="filter-winter"></span>
+    </button>
+    <button class="filter-btn" data-filter="alpine" onclick="setFilter('alpine')">
+      <span class="dot" style="background:var(--achieved-alpine)"></span>
+      <span data-i18n="filter-alpine"></span>
+    </button>
+    <button class="filter-btn" data-filter="open" onclick="setFilter('open')">
+      <span class="dot" style="background:var(--open)"></span>
+      <span data-i18n="filter-open"></span>
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="map-container">
+      <svg id="map"></svg>
+      <div id="legend">
+        <div class="legend-title" data-i18n="legend-title"></div>
+        <div class="legend-row"><div class="legend-marker" style="background:var(--achieved-summer)"></div><span data-i18n="leg-summer"></span></div>
+        <div class="legend-row"><div class="legend-marker" style="background:var(--achieved-winter)"></div><span data-i18n="leg-winter"></span></div>
+        <div class="legend-row"><div class="legend-marker" style="background:var(--achieved-alpine)"></div><span data-i18n="leg-alpine"></span></div>
+        <div class="legend-row"><div class="legend-open"></div><span data-i18n="leg-open"></span></div>
+      </div>
+      <div id="map-hint" data-i18n="map-hint"></div>
+      <div id="map-tooltip"><div id="tt-name"></div><div class="tt-elev" id="tt-elev"></div></div>
+    </div>
+
+    <!-- DETAIL PANEL -->
+    <div id="panel">
+      <div id="panel-header">
+        <button id="panel-close" onclick="closePanel()">✕</button>
+        <div id="panel-peak-name"></div>
+        <div id="panel-peak-name-native"></div>
+        <div id="panel-elevation"></div>
+        <div id="panel-location"></div>
+      </div>
+      <div id="panel-body"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── TRANSLATIONS ──────────────────────────────────────────────────────────
+const I18N = {
+  pl: {
+    tagline: 'Pierwsze wejścia na ośmiotysięczniki',
+    'filter-label': 'Kategoria:',
+    'filter-all': 'Wszystkie',
+    'filter-summer': 'Letnie',
+    'filter-winter': 'Zimowe',
+    'filter-alpine': 'Alpejskie',
+    'filter-open': 'Otwarte',
+    'legend-title': 'Legenda',
+    'leg-summer': 'Pierwsze wejście letnie',
+    'leg-winter': 'Pierwsze zimowe',
+    'leg-alpine': 'Styl alpejski',
+    'leg-open': 'Nieukończone',
+    'map-hint': 'Kliknij szczyt aby zobaczyć szczegóły',
+    'cat-summer': 'Pierwsze wejście letnie',
+    'cat-winter': 'Pierwsze wejście zimowe',
+    'cat-alpine': 'Styl alpejski (letni)',
+    'cat-alpine-winter': 'Styl alpejski zimowy',
+    'done': 'Ukończone',
+    'open': 'Otwarte',
+    'year': 'Rok',
+    'climbers': 'Wspinacze',
+    'country': 'Kraj',
+    'style': 'Styl',
+    'oxygen': 'Tlen',
+    'expedition': 'Oblężniczy',
+    'alpine': 'Alpejski',
+    'yes': 'Tak',
+    'no': 'Nie',
+    'mixed': 'Mieszany',
+    'location': 'Lokalizacja',
+    'elevation': 'm n.p.m.',
+  },
+  en: {
+    tagline: 'First ascents of the eight-thousanders',
+    'filter-label': 'Category:',
+    'filter-all': 'All',
+    'filter-summer': 'Summer',
+    'filter-winter': 'Winter',
+    'filter-alpine': 'Alpine style',
+    'filter-open': 'Open',
+    'legend-title': 'Legend',
+    'leg-summer': 'First summer ascent',
+    'leg-winter': 'First winter ascent',
+    'leg-alpine': 'Alpine style',
+    'leg-open': 'Unachieved',
+    'map-hint': 'Click a peak to see details',
+    'cat-summer': 'First summer ascent',
+    'cat-winter': 'First winter ascent',
+    'cat-alpine': 'Alpine style (summer)',
+    'cat-alpine-winter': 'Alpine style (winter)',
+    'done': 'Done',
+    'open': 'Open',
+    'year': 'Year',
+    'climbers': 'Climbers',
+    'country': 'Country',
+    'style': 'Style',
+    'oxygen': 'Oxygen',
+    'expedition': 'Expedition',
+    'alpine': 'Alpine',
+    'yes': 'Yes',
+    'no': 'No',
+    'mixed': 'Mixed',
+    'location': 'Location',
+    'elevation': 'm a.s.l.',
+  },
+  np: {
+    tagline: 'आठ हजार मिटरका हिमालको पहिलो आरोहण',
+    'filter-label': 'श्रेणी:',
+    'filter-all': 'सबै',
+    'filter-summer': 'ग्रीष्म',
+    'filter-winter': 'हिउँद',
+    'filter-alpine': 'अल्पाइन शैली',
+    'filter-open': 'अपूर्ण',
+    'legend-title': 'लेजेन्ड',
+    'leg-summer': 'पहिलो ग्रीष्म आरोहण',
+    'leg-winter': 'पहिलो हिउँद आरोहण',
+    'leg-alpine': 'अल्पाइन शैली',
+    'leg-open': 'अपूर्ण',
+    'map-hint': 'विवरणका लागि शिखर क्लिक गर्नुहोस्',
+    'cat-summer': 'पहिलो ग्रीष्म आरोहण',
+    'cat-winter': 'पहिलो हिउँद आरोहण',
+    'cat-alpine': 'अल्पाइन शैली (ग्रीष्म)',
+    'cat-alpine-winter': 'अल्पाइन शैली (हिउँद)',
+    'done': 'सम्पन्न',
+    'open': 'अपूर्ण',
+    'year': 'वर्ष',
+    'climbers': 'आरोही',
+    'country': 'देश',
+    'style': 'शैली',
+    'oxygen': 'अक्सिजन',
+    'expedition': 'अभियान शैली',
+    'alpine': 'अल्पाइन',
+    'yes': 'हो',
+    'no': 'होइन',
+    'mixed': 'मिश्रित',
+    'location': 'स्थान',
+    'elevation': 'मि.',
+  }
+};
+
+let lang = 'pl';
+function t(key) { return I18N[lang][key] || I18N.en[key] || key; }
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === l || (l==='np' && b.textContent.includes('नेपाली'))));
+  applyI18n();
+  if (activePeak) openPanel(activePeak);
+}
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+}
+
+// ─── PEAK DATA ─────────────────────────────────────────────────────────────
+const PEAKS = [
+  {
+    id: 'everest', rank: 1,
+    names: { pl: 'Everest', en: 'Everest', np: 'सगरमाथा' },
+    altName: 'Sagarmatha / Chomolungma',
+    elevation: 8849, lat: 27.9881, lng: 86.9250,
+    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
+    summer: {
+      year: 1953, style: 'expedition', oxygen: 'yes',
+      climbers: 'Edmund Hillary, Tenzing Norgay',
+      country: 'Nowa Zelandia / Nepal'
+    },
+    winter: {
+      year: 1980, style: 'expedition', oxygen: 'yes',
+      climbers: 'Krzysztof Wielicki, Leszek Cichy',
+      country: 'Polska'
+    },
+    alpine: null,
+    alpineWinter: null
+  },
+  {
+    id: 'k2', rank: 2,
+    names: { pl: 'K2', en: 'K2', np: 'के२' },
+    altName: 'Chogori',
+    elevation: 8611, lat: 35.8825, lng: 76.5133,
+    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
+    summer: {
+      year: 1954, style: 'expedition', oxygen: 'no',
+      climbers: 'Achille Compagnoni, Lino Lacedelli',
+      country: 'Włochy'
+    },
+    winter: {
+      year: 2021, style: 'expedition', oxygen: 'mixed',
+      climbers: 'Nirmal Purja i 9 Nepalczyków',
+      country: 'Nepal',
+      note: { pl: '9 wspinaczy korzystało z tlenu, 1 (Nirmal Purja) bez tlenu. Cały zespół działał w stylu oblężniczym — stałe liny, bazy pośrednie, duży team.', en: '9 climbers used supplementary oxygen, 1 (Nirmal Purja) without. The team used fixed ropes, intermediate camps — expedition style.', np: '९ आरोहीले अक्सिजन प्रयोग गरे, १ (निर्मल पुर्जा) बिना अक्सिजन। दल अभियान शैलीमा थियो।' }
+    },
+    alpine: null,
+    alpineWinter: null,
+    isMain: true
+  },
+  {
+    id: 'kangchenjunga', rank: 3,
+    names: { pl: 'Kangczendzonga', en: 'Kangchenjunga', np: 'कञ्चनजङ्घा' },
+    elevation: 8586, lat: 27.7025, lng: 88.1475,
+    location: { pl: 'Nepal / Indie', en: 'Nepal / India', np: 'नेपाल / भारत' },
+    summer: {
+      year: 1955, style: 'expedition', oxygen: 'yes',
+      climbers: 'George Band, Joe Brown',
+      country: 'Wielka Brytania'
+    },
+    winter: {
+      year: 1986, style: 'expedition', oxygen: 'no',
+      climbers: 'Jerzy Kukuczka, Krzysztof Wielicki',
+      country: 'Polska'
+    },
+    alpine: null, alpineWinter: null
+  },
+  {
+    id: 'lhotse', rank: 4,
+    names: { pl: 'Lhotse', en: 'Lhotse', np: 'ल्होत्से' },
+    elevation: 8516, lat: 27.9617, lng: 86.9330,
+    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
+    summer: {
+      year: 1956, style: 'expedition', oxygen: 'yes',
+      climbers: 'Fritz Luchsinger, Ernst Reiss',
+      country: 'Szwajcaria'
+    },
+    winter: {
+      year: 1988, style: 'expedition', oxygen: 'no',
+      climbers: 'Krzysztof Wielicki',
+      country: 'Polska'
+    },
+    alpine: null, alpineWinter: null
+  },
+  {
+    id: 'makalu', rank: 5,
+    names: { pl: 'Makalu', en: 'Makalu', np: 'मकालु' },
+    elevation: 8485, lat: 27.8897, lng: 87.0886,
+    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
+    summer: {
+      year: 1955, style: 'expedition', oxygen: 'yes',
+      climbers: 'Jean Couzy, Lionel Terray',
+      country: 'Francja'
+    },
+    winter: {
+      year: 2009, style: 'expedition', oxygen: 'no',
+      climbers: 'Denis Urubko, Simone Moro',
+      country: 'Kazachstan / Włochy'
+    },
+    alpine: null, alpineWinter: null
+  },
+  {
+    id: 'cho-oyu', rank: 6,
+    names: { pl: 'Czo Oju', en: 'Cho Oyu', np: 'चो ओयु' },
+    elevation: 8188, lat: 28.0942, lng: 86.6607,
+    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
+    summer: {
+      year: 1954, style: 'alpine', oxygen: 'no',
+      climbers: 'Herbert Tichy, Sepp Jöchler, Pasang Dawa Lama',
+      country: 'Austria',
+      note: { pl: 'Pierwsze wejście na ośmiotysięcznik w stylu alpejskim — mały zespół, bez stałych lin, bez O₂.', en: 'First 8000m peak climbed in alpine style — small team, no fixed ropes, no supplemental O₂.', np: 'अल्पाइन शैलीमा पहिलो ८०००मि आरोहण।' }
+    },
+    winter: {
+      year: 1985, style: 'expedition', oxygen: 'yes',
+      climbers: 'Maciej Berbeka, Maciej Pawlikowski',
+      country: 'Polska'
+    },
+    alpine: {
+      year: 1954,
+      note: { pl: 'Pierwsze wejście było już w stylu alpejskim.', en: 'First ascent was already alpine style.', np: 'पहिलो आरोहण नै अल्पाइन शैलीमा थियो।' }
+    },
+    alpineWinter: null
+  },
+  {
+    id: 'dhaulagiri', rank: 7,
+    names: { pl: 'Dhaulagiri', en: 'Dhaulagiri', np: 'धौलागिरि' },
+    elevation: 8167, lat: 28.6983, lng: 83.4869,
+    location: { pl: 'Nepal', en: 'Nepal', np: 'नेपाल' },
+    summer: {
+      year: 1960, style: 'expedition', oxygen: 'no',
+      climbers: 'Kurt Diemberger, Peter Diener, Ernst Forrer, Albin Schelbert, Nawang Dorje, Nyima Dorje',
+      country: 'Szwajcaria / Austria'
+    },
+    winter: {
+      year: 1985, style: 'expedition', oxygen: 'no',
+      climbers: 'Jerzy Kukuczka, Andrzej Czok',
+      country: 'Polska'
+    },
+    alpine: null, alpineWinter: null
+  },
+  {
+    id: 'manaslu', rank: 8,
+    names: { pl: 'Manaslu', en: 'Manaslu', np: 'मनास्लु' },
+    elevation: 8163, lat: 28.5500, lng: 84.5592,
+    location: { pl: 'Nepal', en: 'Nepal', np: 'नेपाल' },
+    summer: {
+      year: 1956, style: 'expedition', oxygen: 'yes',
+      climbers: 'Toshio Imanishi, Gyalzen Norbu',
+      country: 'Japonia'
+    },
+    winter: {
+      year: 1984, style: 'expedition', oxygen: 'no',
+      climbers: 'Maciej Berbeka, Ryszard Gajewski',
+      country: 'Polska'
+    },
+    alpine: null, alpineWinter: null
+  },
+  {
+    id: 'nanga-parbat', rank: 9,
+    names: { pl: 'Nanga Parbat', en: 'Nanga Parbat', np: 'नंगा परबत' },
+    altName: 'Killer Mountain',
+    elevation: 8126, lat: 35.2372, lng: 74.5892,
+    location: { pl: 'Pakistan', en: 'Pakistan', np: 'पाकिस्तान' },
+    summer: {
+      year: 1953, style: 'alpine', oxygen: 'no',
+      climbers: 'Hermann Buhl',
+      country: 'Austria',
+      note: { pl: 'Legendarny samotny atak szczytowy Hermanna Buhla — solo, bez tlenu, w stylu alpejskim. Powrót w nocy w ekstremalnym zimnie.', en: "Hermann Buhl's legendary solo summit push — no oxygen, alpine style, returning in extreme cold and darkness.", np: 'हर्मन बुलको एकल आरोहण — बिना अक्सिजन, अल्पाइन शैली।' }
+    },
+    winter: {
+      year: 2016, style: 'expedition', oxygen: 'no',
+      climbers: 'Ali Sadpara, Simone Moro, Alex Txikon',
+      country: 'Pakistan / Włochy / Hiszpania'
+    },
+    alpine: {
+      year: 1953,
+      note: { pl: 'Pierwsze wejście było w stylu alpejskim (solo Buhl).', en: 'First ascent was alpine style (Buhl solo).', np: 'पहिलो आरोहण अल्पाइन शैली (बुलको एकल) थियो।' }
+    },
+    alpineWinter: null
+  },
+  {
+    id: 'annapurna', rank: 10,
+    names: { pl: 'Annapurna', en: 'Annapurna', np: 'अन्नपूर्ण' },
+    elevation: 8091, lat: 28.5967, lng: 83.8200,
+    location: { pl: 'Nepal', en: 'Nepal', np: 'नेपाल' },
+    summer: {
+      year: 1950, style: 'expedition', oxygen: 'no',
+      climbers: 'Maurice Herzog, Louis Lachenal',
+      country: 'Francja',
+      note: { pl: 'Pierwszy ośmiotysięcznik zdobyty przez człowieka.', en: 'First 8000m peak ever summited.', np: 'मानव इतिहासमा पहिलो ८०००मि शिखर।' }
+    },
+    winter: {
+      year: 1987, style: 'expedition', oxygen: 'no',
+      climbers: 'Jerzy Kukuczka, Artur Hajzer',
+      country: 'Polska'
+    },
+    alpine: null, alpineWinter: null
+  },
+  {
+    id: 'gasherbrum-i', rank: 11,
+    names: { pl: 'Gasherbrum I', en: 'Gasherbrum I', np: 'गाशेरब्रुम I' },
+    altName: 'Hidden Peak',
+    elevation: 8080, lat: 35.7244, lng: 76.6964,
+    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
+    summer: {
+      year: 1958, style: 'expedition', oxygen: 'no',
+      climbers: 'Andrew Kauffman, Peter Schoening',
+      country: 'USA'
+    },
+    winter: {
+      year: 2012, style: 'expedition', oxygen: 'no',
+      climbers: 'Adam Bielecki, Janusz Gołąb',
+      country: 'Polska'
+    },
+    alpine: {
+      year: 1975,
+      climbers: 'Reinhold Messner, Peter Habeler',
+      country: 'Włochy / Austria',
+      note: { pl: 'Rewolucyjne wejście Messnera i Habelera — pierwsze na ośmiotysięcznik bez stałych lin, bez dużego zespołu. Zmienili definicję alpinizmu wysokogórskiego.', en: 'Revolutionary ascent by Messner & Habeler — first 8000m peak in pure alpine style: no fixed ropes, no large team. Redefined high-altitude mountaineering.', np: 'मेस्नर र हेबेलरको क्रान्तिकारी आरोहण — पहिलो शुद्ध अल्पाइन शैली।' }
+    },
+    alpineWinter: null
+  },
+  {
+    id: 'broad-peak', rank: 12,
+    names: { pl: 'Broad Peak', en: 'Broad Peak', np: 'ब्रड पिक' },
+    elevation: 8051, lat: 35.8108, lng: 76.5647,
+    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
+    summer: {
+      year: 1957, style: 'alpine', oxygen: 'no',
+      climbers: 'Fritz Wintersteller, Marcus Schmuck, Kurt Diemberger, Hermann Buhl',
+      country: 'Austria',
+      note: { pl: 'Czyste wejście alpejskie — czteroosobowy zespół, zero stałych lin, zero tlenu. Wzorzec dla późniejszego alpinizmu wysokogórskiego.', en: 'Pure alpine ascent — four-person team, zero fixed ropes, zero oxygen. A template for future high-altitude alpine climbing.', np: 'शुद्ध अल्पाइन आरोहण — चार जनाको दल, स्थायी डोरी र अक्सिजन बिना।' }
+    },
+    winter: {
+      year: 2013, style: 'expedition', oxygen: 'no',
+      climbers: 'Maciej Berbeka, Tomasz Kowalski, Adam Bielecki, Artur Małek',
+      country: 'Polska',
+      note: { pl: 'Tragiczne wejście — Berbeka i Kowalski zginęli podczas zejścia.', en: 'Tragic ascent — Berbeka and Kowalski died during descent.', np: 'दुखद आरोहण — बेरबेका र कोवाल्स्की अवरोहणमा मारिए।' }
+    },
+    alpine: {
+      year: 1957,
+      note: { pl: 'Pierwsze wejście było w pełni w stylu alpejskim.', en: 'First ascent was fully alpine style.', np: 'पहिलो आरोहण पूर्णतः अल्पाइन शैलीमा थियो।' }
+    },
+    alpineWinter: null
+  },
+  {
+    id: 'gasherbrum-ii', rank: 13,
+    names: { pl: 'Gasherbrum II', en: 'Gasherbrum II', np: 'गाशेरब्रुम II' },
+    elevation: 8035, lat: 35.7578, lng: 76.6531,
+    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
+    summer: {
+      year: 1956, style: 'expedition', oxygen: 'no',
+      climbers: 'Fritz Moravec, Josef Larch, Hans Willenpart',
+      country: 'Austria'
+    },
+    winter: {
+      year: 2011, style: 'expedition', oxygen: 'no',
+      climbers: 'Simone Moro, Denis Urubko, Cory Richards',
+      country: 'Włochy / Kazachstan / USA'
+    },
+    alpine: null, alpineWinter: null
+  },
+  {
+    id: 'shishapangma', rank: 14,
+    names: { pl: 'Shishapangma', en: 'Shishapangma', np: 'शिशापाङमा' },
+    altName: 'Gosainthan',
+    elevation: 8027, lat: 28.3525, lng: 85.7786,
+    location: { pl: 'Chiny (Tybet)', en: 'China (Tibet)', np: 'चीन (तिब्बत)' },
+    summer: {
+      year: 1964, style: 'expedition', oxygen: 'no',
+      climbers: 'Xu Jing i zespół',
+      country: 'Chiny'
+    },
+    winter: {
+      year: 2005, style: 'expedition', oxygen: 'no',
+      climbers: 'Piotr Morawski, Simone Moro',
+      country: 'Polska / Włochy'
+    },
+    alpine: null, alpineWinter: null
+  }
+];
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let activePeak = null;
+let activeFilter = 'all';
+
+// ─── FILTER ─────────────────────────────────────────────────────────────────
+function setFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  updateMarkers();
+  if (activePeak) closePanel();
+}
+
+function peakMatchesFilter(p) {
+  if (activeFilter === 'all') return true;
+  if (activeFilter === 'summer') return !!p.summer;
+  if (activeFilter === 'winter') return !!p.winter;
+  if (activeFilter === 'alpine') return !!p.alpine;
+  if (activeFilter === 'open') return !p.alpineWinter;
+  return true;
+}
+
+function getPeakColor(p) {
+  if (activeFilter === 'winter' && p.winter) return 'var(--achieved-winter)';
+  if (activeFilter === 'alpine' && p.alpine) return 'var(--achieved-alpine)';
+  if (activeFilter === 'open') return 'var(--open)';
+  if (activeFilter === 'summer' && p.summer) return 'var(--achieved-summer)';
+  // default: show main category
+  if (p.alpine?.year === p.summer?.year) return 'var(--achieved-alpine)';
+  return 'var(--achieved-summer)';
+}
+
+// ─── MAP ────────────────────────────────────────────────────────────────────
+const svg = d3.select('#map');
+const mapContainer = document.getElementById('map-container');
+let W = mapContainer.clientWidth, H = mapContainer.clientHeight;
+
+const projection = d3.geoMercator()
+  .center([82, 30])
+  .scale(Math.min(W, H) * 2.2)
+  .translate([W / 2, H / 2]);
+
+const path = d3.geoPath().projection(projection);
+const g = svg.append('g');
+
+// Graticule
+const grat = d3.geoGraticule()();
+g.append('path').datum(grat).attr('class', 'graticule').attr('d', path);
+
+// Load world topology
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+  .then(r => r.json())
+  .then(world => {
+    const countries = topojson.feature(world, world.objects.countries);
+    g.selectAll('.country')
+      .data(countries.features)
+      .join('path')
+      .attr('class', d => {
+        const highlightIds = ['356', '524', '586', '156', '050', '051', '050']; // India, Nepal, Pakistan, China, Bangladesh, Afghanistan
+        return 'country' + (highlightIds.includes(d.id?.toString()) ? ' country-highlight' : '');
+      })
+      .attr('d', path);
+    drawPeaks();
+  })
+  .catch(() => {
+    // Fallback if fetch fails
+    drawPeaks();
+  });
+
+const tooltip = document.getElementById('map-tooltip');
+
+function drawPeaks() {
+  const markerG = g.append('g').attr('class', 'peaks-layer');
+
+  PEAKS.forEach(p => {
+    const [px, py] = projection([p.lng, p.lat]);
+    const pg = markerG.append('g')
+      .attr('class', 'peak-marker')
+      .attr('transform', `translate(${px},${py})`)
+      .attr('data-id', p.id);
+
+    // Pulse ring for open alpine winter
+    pg.append('circle')
+      .attr('class', 'peak-pulse')
+      .attr('r', 14)
+      .attr('fill', 'rgba(212,32,26,0.15)')
+      .attr('stroke', 'none');
+
+    // Outer ring
+    pg.append('circle')
+      .attr('class', 'peak-outer')
+      .attr('r', 9)
+      .attr('fill', 'rgba(212,84,26,0.08)')
+      .attr('stroke', 'var(--open)')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', p.isMain ? 'none' : '3 2');
+
+    // Inner dot
+    pg.append('circle')
+      .attr('r', 5)
+      .attr('fill', p.isMain ? 'var(--orange-glow)' : 'var(--achieved-summer)')
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1);
+
+    // Label
+    pg.append('text')
+      .attr('class', 'peak-label')
+      .attr('dy', -14)
+      .text(p.rank + '. ' + p.names.pl);
+
+    // Interactions
+    pg.on('click', () => openPanel(p))
+      .on('mousemove', (e) => {
+        document.getElementById('tt-name').textContent = p.names[lang] + ' (' + p.elevation + ' m)';
+        document.getElementById('tt-elev').textContent = p.location[lang];
+        const rect = mapContainer.getBoundingClientRect();
+        tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+        tooltip.style.top = (e.clientY - rect.top - 40) + 'px';
+        tooltip.style.opacity = 1;
+      })
+      .on('mouseleave', () => { tooltip.style.opacity = 0; });
+  });
+  updateMarkers();
+}
+
+function updateMarkers() {
+  d3.selectAll('.peak-marker').each(function(d, i) {
+    const el = d3.select(this);
+    const pid = this.getAttribute('data-id');
+    const p = PEAKS.find(x => x.id === pid);
+    if (!p) return;
+    const visible = peakMatchesFilter(p);
+    el.style('opacity', visible ? 1 : 0.2);
+    el.select('.peak-pulse').style('display', activeFilter === 'open' ? 'block' : 'none');
+    el.select('.peak-label').text(p.rank + '. ' + p.names[lang]);
+  });
+}
+
+// Zoom
+const zoom = d3.zoom().scaleExtent([0.5, 8]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom);
+
+window.addEventListener('resize', () => {
+  W = mapContainer.clientWidth; H = mapContainer.clientHeight;
+  projection.translate([W / 2, H / 2]).scale(Math.min(W, H) * 2.2);
+  g.selectAll('path').attr('d', path);
+  // Redraw peaks
+  g.select('.peaks-layer').remove();
+  drawPeaks();
+});
+
+// ─── PANEL ──────────────────────────────────────────────────────────────────
+function openPanel(p) {
+  activePeak = p;
+  document.getElementById('panel-peak-name').textContent = p.names[lang];
+  document.getElementById('panel-peak-name-native').textContent = [p.names.np !== p.names[lang] ? p.names.np : '', p.altName || ''].filter(Boolean).join(' · ');
+  document.getElementById('panel-elevation').textContent = p.elevation.toLocaleString() + ' ' + t('elevation');
+  document.getElementById('panel-location').textContent = p.location[lang];
+
+  const body = document.getElementById('panel-body');
+  body.innerHTML = '';
+
+  const categories = [
+    { key: 'summer', label: t('cat-summer'), color: 'var(--achieved-summer)', data: p.summer, badgeClass: 'badge-done' },
+    { key: 'winter', label: t('cat-winter'), color: 'var(--achieved-winter)', data: p.winter, badgeClass: 'badge-winter' },
+    { key: 'alpine', label: t('cat-alpine'), color: 'var(--achieved-alpine)', data: p.alpine, badgeClass: 'badge-alpine' },
+    { key: 'alpineWinter', label: t('cat-alpine-winter'), color: 'var(--open)', data: p.alpineWinter, badgeClass: 'badge-open', alwaysShow: true }
+  ];
+
+  categories.forEach(cat => {
+    if (!cat.data && !cat.alwaysShow) return;
+    const block = document.createElement('div');
+    block.className = 'category-block';
+
+    const header = document.createElement('div');
+    header.className = 'cat-header';
+    header.innerHTML = `<div class="cat-dot" style="background:${cat.color}"></div><div class="cat-title">${cat.label}</div>`;
+
+    if (cat.data) {
+      const badge = document.createElement('span');
+      badge.className = 'cat-badge ' + cat.badgeClass;
+      badge.textContent = cat.key === 'winter' ? t('done') : t('done');
+      if (cat.key === 'alpine') badge.textContent = cat.data.year;
+      header.appendChild(badge);
+    } else {
+      const badge = document.createElement('span');
+      badge.className = 'cat-badge badge-open';
+      badge.textContent = t('open');
+      header.appendChild(badge);
+    }
+    block.appendChild(header);
+
+    if (cat.data) {
+      if (cat.data.year) addRow(block, t('year'), cat.data.year);
+      if (cat.data.climbers) addRow(block, t('climbers'), cat.data.climbers);
+      if (cat.data.country) addRow(block, t('country'), cat.data.country);
+      if (cat.data.style) addRow(block, t('style'), t(cat.data.style));
+      if (cat.data.oxygen) addRow(block, t('oxygen'), t(cat.data.oxygen));
+      if (cat.data.note) {
+        const note = document.createElement('div');
+        note.className = 'detail-note';
+        note.textContent = typeof cat.data.note === 'string' ? cat.data.note : (cat.data.note[lang] || cat.data.note.pl);
+        block.appendChild(note);
+      }
+    } else if (cat.alwaysShow) {
+      const ob = document.createElement('div');
+      ob.className = 'open-block';
+      ob.innerHTML = `<div class="open-label">⬤ ${t('open')}</div><div class="open-desc">${
+        lang === 'pl' ? 'Nikt nie wszedł na ten szczyt w stylu alpejskim zimą. Ta kategoria pozostaje otwarta na wszystkich 14 ośmiotysięcznikach.' :
+        lang === 'en' ? 'No one has summited this peak in alpine style during winter. This category remains open on all 14 eight-thousanders.' :
+        'कुनै पनि व्यक्तिले यो शिखरमा हिउँदमा अल्पाइन शैलीमा आरोहण गरेका छैनन्।'
+      }</div>`;
+      block.appendChild(ob);
+    }
+    body.appendChild(block);
+  });
+
+  document.getElementById('panel').classList.add('open');
+}
+
+function addRow(parent, key, val) {
+  const row = document.createElement('div');
+  row.className = 'detail-row';
+  row.innerHTML = `<div class="detail-key">${key}</div><div class="detail-val">${val}</div>`;
+  parent.appendChild(row);
+}
+
+function closePanel() {
+  activePeak = null;
+  document.getElementById('panel').classList.remove('open');
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+applyI18n();
+</script>
+</body>
+</html>
