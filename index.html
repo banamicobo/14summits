@@ -3,943 +3,726 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>14 Summits — Pierwsze wejścia na ośmiotysięczniki</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>14 SUMMITS // TACTICAL DATABASE</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-:root {
-  --bg: #f0f4f8;
-  --bg2: #e2eaf3;
-  --map-bg: #0b1929;
-  --map-land: #1a3050;
-  --map-land2: #1e3a5f;
-  --map-border: #2a4a72;
-  --navy: #0f2240;
-  --navy2: #1a3560;
-  --orange: #d4541a;
-  --orange-glow: #e8621a;
-  --orange-light: rgba(212,84,26,0.15);
-  --cold-blue: #4a7fb5;
-  --cold-blue-light: #7aacd4;
-  --snow: #f8fafc;
-  --text: #0f2240;
-  --text2: #4a5e7a;
-  --text3: #8094b0;
-  --open: #d4201a;
-  --open-bg: rgba(212,32,26,0.12);
-  --achieved-summer: #1a7fd4;
-  --achieved-winter: #4a5ecc;
-  --achieved-alpine: #2ab05a;
-  --panel-w: 380px;
-  --panel-w-mobile: 100%;
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#03080d;--bg2:#050d14;
+  --ph:#4db8ff;--ph-dim:rgba(77,184,255,.22);--ph-faint:rgba(77,184,255,.06);
+  --amber:#e8a020;--red:#ff2b2b;--red-dim:rgba(255,43,43,.13);
+  --blue-w:#7ee3ff;--alp:#7be850;
+  --brd:rgba(77,184,255,.18);--brd2:rgba(77,184,255,.09);
+  --txt:rgba(77,184,255,.88);--txt2:rgba(77,184,255,.42);--txt3:rgba(77,184,255,.2);
 }
-html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-a { color: inherit; text-decoration: none; }
+html,body{height:100%;background:#010407;color:var(--txt);font-family:'Space Mono',monospace;overflow:hidden;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:1000;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.045) 2px,rgba(0,0,0,.045) 4px);}
 
-/* LAYOUT */
-#app { display: flex; flex-direction: column; height: 100%; }
+/* ══ LANDING ════════════════════════════════════════════════════════════════ */
+#landing{
+  position:fixed;inset:0;z-index:500;
+  background:#010407;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  transition:opacity 1s ease;
+}
+#landing.out{opacity:0;pointer-events:none;}
+#landing-stars{position:absolute;inset:0;overflow:hidden;}
+#lc{position:relative;z-index:2;text-align:center;max-width:700px;padding:0 32px;}
+.l-tag{font-size:9px;letter-spacing:.25em;color:var(--txt3);margin-bottom:24px;}
+.l-title{font-size:clamp(36px,6vw,72px);font-weight:700;color:#fff;letter-spacing:-.02em;
+  line-height:1.05;margin-bottom:16px;}
+.l-title em{color:var(--red);font-style:normal;}
+.l-punch{font-size:clamp(12px,1.6vw,16px);color:var(--txt2);letter-spacing:.04em;
+  line-height:1.8;margin-bottom:40px;}
+.l-punch strong{color:rgba(77,184,255,.75);}
+#btn-start{
+  background:none;border:1px solid var(--ph);color:var(--ph);
+  font-family:'Space Mono',monospace;font-size:12px;font-weight:700;
+  letter-spacing:.2em;padding:14px 40px;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+#btn-start::before{content:'';position:absolute;inset:0;background:var(--ph);
+  transform:translateX(-100%);transition:transform .3s ease;z-index:-1;}
+#btn-start:hover{color:#000;}
+#btn-start:hover::before{transform:translateX(0);}
+.l-hint{margin-top:18px;font-size:9px;color:var(--txt3);letter-spacing:.12em;animation:blink 2s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ══ GLOBE LAYER ════════════════════════════════════════════════════════════ */
+#globe-layer{
+  position:fixed;inset:0;z-index:400;
+  background:#010407;
+  opacity:0;pointer-events:none;
+  transition:opacity .6s ease;
+}
+#globe-layer.show{opacity:1;}
+#globe-layer.out{opacity:0;}
+#globe-svg{width:100%;height:100%;}
+
+/* ══ APP ════════════════════════════════════════════════════════════════════ */
+#app{display:flex;flex-direction:column;height:100%;opacity:0;transition:opacity 1.2s ease;}
+#app.show{opacity:1;}
 
 /* HEADER */
-#header {
-  background: var(--navy);
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  z-index: 50;
-}
-#header-left { display: flex; align-items: center; gap: 16px; }
-#logo { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
-#logo span { color: var(--orange-glow); }
-#tagline { font-size: 11px; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; display: none; }
-@media (min-width: 600px) { #tagline { display: block; } }
+#header{height:50px;flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;padding:0 18px;gap:18px;z-index:50;}
+#sys{display:flex;align-items:center;gap:7px;font-size:9px;color:var(--ph);letter-spacing:.14em;}
+.bdot{width:6px;height:6px;border-radius:50%;background:var(--ph);animation:blink 1.3s step-end infinite;}
+#logo{font-size:15px;font-weight:700;color:#fff;letter-spacing:.06em;}
+#logo em{color:var(--ph);font-style:normal;}
+#logo small{color:var(--txt2);font-size:9px;font-weight:400;letter-spacing:.14em;margin-left:10px;}
+#clock{margin-left:auto;font-size:9px;color:var(--txt2);letter-spacing:.08em;}
+#lang-sw{display:flex;gap:3px;}
+.lbtn{background:none;border:1px solid var(--brd2);color:var(--txt2);font-family:'Space Mono',monospace;
+  font-size:9px;letter-spacing:.1em;padding:3px 9px;cursor:pointer;transition:all .12s;}
+.lbtn:hover{border-color:var(--ph);color:var(--ph);}
+.lbtn.active{background:var(--ph);border-color:var(--ph);color:#000;font-weight:700;}
 
-#lang-switcher { display: flex; gap: 4px; }
-.lang-btn {
-  background: none; border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5);
-  font-family: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
-  padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
-}
-.lang-btn:hover { border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.8); }
-.lang-btn.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+/* FILTER */
+#fbar{height:36px;flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--brd2);
+  display:flex;align-items:center;padding:0 18px;gap:5px;overflow-x:auto;scrollbar-width:none;}
+#fbar::-webkit-scrollbar{display:none;}
+.fp{font-size:9px;color:var(--txt3);letter-spacing:.12em;margin-right:3px;white-space:nowrap;}
+.fbtn{background:none;border:1px solid var(--brd2);color:var(--txt2);font-family:'Space Mono',monospace;
+  font-size:9px;letter-spacing:.08em;padding:3px 11px;cursor:pointer;transition:all .12s;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;}
+.fbtn .fd{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.fbtn:hover{border-color:var(--ph-dim);color:var(--txt);}
+.fbtn.active{border-color:var(--ph);color:var(--ph);background:var(--ph-faint);}
 
-/* FILTERS */
-#filter-bar {
-  background: var(--navy2);
-  padding: 0 24px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-#filter-bar::-webkit-scrollbar { display: none; }
-.filter-label { font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 4px; white-space: nowrap; }
-.filter-btn {
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.55); font-family: inherit; font-size: 11px; font-weight: 500;
-  padding: 5px 14px; border-radius: 20px; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 6px;
-}
-.filter-btn .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.filter-btn:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); }
-.filter-btn.active { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); color: #fff; }
+/* MAP SECTION */
+#map-sec{flex:1;position:relative;overflow:hidden;}
+#map-svg{position:absolute;inset:0;width:100%;height:100%;}
+#map-sec::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:2;
+  background-image:linear-gradient(rgba(77,184,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(77,184,255,.03) 1px,transparent 1px);
+  background-size:55px 55px;}
+.sphere{fill:#020609;}
+.graticule{fill:none;stroke:rgba(77,184,255,.04);stroke-width:.5;}
+.country{fill:#071118;stroke:rgba(77,184,255,.38);stroke-width:.85;}
+.country-hi{fill:#0c1e2e;stroke:rgba(77,184,255,.55);stroke-width:1;}
 
-/* MAIN */
-#main { display: flex; flex: 1; overflow: hidden; }
+/* RETICLE */
+.peak-g{cursor:pointer;}
+.ret-ring{fill:none;stroke-dasharray:4 3;}
+.ret-arm{stroke-width:.9;}
+.ret-pulse{fill:none;animation:rp 2.2s ease-out infinite;}
+@keyframes rp{0%{r:10px;opacity:.45;stroke-width:1.5}100%{r:26px;opacity:0;stroke-width:.3}}
 
-/* MAP */
-#map-container {
-  flex: 1;
-  background: var(--map-bg);
-  position: relative;
-  overflow: hidden;
-}
-#map-container svg { width: 100%; height: 100%; }
-.country { fill: var(--map-land); stroke: var(--map-border); stroke-width: 0.5; }
-.country-highlight { fill: var(--map-land2); }
-.graticule { fill: none; stroke: rgba(255,255,255,0.03); stroke-width: 0.5; }
-.sphere { fill: #081422; }
+/* LEADER LINES */
+#leader-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;
+  opacity:0;transition:opacity 1s ease;}
+#leader-svg.show{opacity:1;}
 
-/* PEAK MARKERS */
-.peak-marker { cursor: pointer; }
-.peak-outer {
-  transition: all 0.2s;
+/* FLOATING CARDS */
+.pcard{
+  position:absolute;width:144px;
+  background:rgba(3,8,13,.86);border:1px solid rgba(77,184,255,.18);
+  padding:7px 9px;cursor:pointer;
+  transition:border-color .15s,background .15s,opacity .4s ease;
+  z-index:4;backdrop-filter:blur(3px);
+  opacity:0;
 }
-.peak-marker:hover .peak-outer { filter: brightness(1.4); }
-.peak-pulse {
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 0.4; r: 14px; }
-  50% { opacity: 0.1; r: 18px; }
-}
-.peak-label {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 500;
-  fill: rgba(255,255,255,0.8);
-  pointer-events: none;
-  text-anchor: middle;
-}
-.peak-label.active { fill: #fff; font-weight: 600; }
+.pcard.show{opacity:1;}
+.pcard:hover{border-color:rgba(77,184,255,.5);background:rgba(3,8,13,.95);}
+.pcard.selected{border-color:var(--ph);box-shadow:0 0 12px rgba(77,184,255,.15);}
+.pcard.is-main{border-color:rgba(255,43,43,.4);}
+.pcard.is-main:hover{border-color:rgba(255,43,43,.75);}
+.pcard.is-main.selected{border-color:var(--red);box-shadow:0 0 12px rgba(255,43,43,.2);}
+.pc-top{display:flex;align-items:baseline;gap:5px;margin-bottom:2px;}
+.pc-rank{font-size:8px;color:var(--txt3);}
+.pc-name{font-size:10px;font-weight:700;color:#fff;letter-spacing:.04em;line-height:1.2;}
+.pc-name.main{color:var(--red);}
+.pc-elev{font-size:8px;color:var(--txt2);letter-spacing:.06em;margin-bottom:4px;}
+.pc-dots{display:flex;gap:3px;align-items:center;}
+.ds,.dw,.da{width:5px;height:5px;border-radius:50%;}
+.ds.on{background:#4db8ff;}.ds.off{background:rgba(77,184,255,.12);}
+.dw.on{background:#7ee3ff;}.dw.off{background:rgba(126,227,255,.12);}
+.da.on{background:#7be850;}.da.off{background:rgba(123,232,80,.12);}
+.daw{width:5px;height:5px;border-radius:50%;border:1px solid rgba(255,43,43,.65);animation:blink 1.6s step-end infinite;}
+.dlbl{font-size:7px;color:var(--txt3);letter-spacing:.04em;margin-left:1px;}
 
-/* DETAIL PANEL */
-#panel {
-  width: var(--panel-w);
-  background: var(--snow);
-  border-left: 1px solid rgba(15,34,64,0.1);
-  flex-shrink: 0;
-  overflow-y: auto;
-  transform: translateX(var(--panel-w));
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-#panel.open { transform: translateX(0); }
-#panel-header {
-  padding: 24px 24px 16px;
-  background: var(--navy);
-  color: #fff;
-  flex-shrink: 0;
-}
-#panel-close {
-  position: absolute; top: 14px; right: 14px;
-  background: rgba(255,255,255,0.1); border: none; color: #fff;
-  width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
-  font-size: 16px; display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s;
-}
-#panel-close:hover { background: rgba(255,255,255,0.2); }
-#panel-peak-name { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 2px; }
-#panel-peak-name-native { font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 12px; }
-#panel-elevation {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--orange); color: #fff;
-  padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;
-}
-#panel-location { margin-top: 8px; font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; text-transform: uppercase; }
-#panel-body { padding: 20px 24px; flex: 1; }
-
-.category-block { margin-bottom: 20px; }
-.category-block:last-child { margin-bottom: 0; }
-.cat-header {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
-  padding-bottom: 8px; border-bottom: 1px solid rgba(15,34,64,0.08);
-}
-.cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.cat-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); }
-.cat-badge {
-  margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
-  padding: 2px 8px; border-radius: 3px; text-transform: uppercase;
-}
-.badge-done { background: rgba(26,127,212,0.12); color: var(--achieved-summer); }
-.badge-winter { background: rgba(74,94,204,0.12); color: var(--achieved-winter); }
-.badge-alpine { background: rgba(42,176,90,0.12); color: var(--achieved-alpine); }
-.badge-open { background: var(--open-bg); color: var(--open); }
-
-.detail-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
-.detail-row:last-child { margin-bottom: 0; }
-.detail-key { font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
-.detail-val { font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.4; }
-.detail-note { font-size: 11px; color: var(--text2); font-style: italic; line-height: 1.5; margin-top: 6px; padding: 8px; background: rgba(15,34,64,0.04); border-radius: 4px; border-left: 3px solid var(--cold-blue); }
-.open-block {
-  background: var(--open-bg); border: 1px dashed rgba(212,32,26,0.3);
-  border-radius: 6px; padding: 12px; text-align: center;
-}
-.open-block .open-label { font-size: 11px; font-weight: 700; color: var(--open); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
-.open-block .open-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+/* PANEL */
+#panel{position:absolute;top:0;right:0;bottom:0;width:360px;z-index:30;
+  background:var(--bg2);border-left:1px solid var(--brd);
+  transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;overflow-y:auto;}
+#panel.open{transform:translateX(0);}
+#panel::-webkit-scrollbar{width:3px;}
+#panel::-webkit-scrollbar-thumb{background:var(--brd);}
+#ptop{padding:18px 18px 14px;border-bottom:1px solid var(--brd2);flex-shrink:0;position:relative;}
+#pclose{position:absolute;top:12px;right:12px;background:none;border:1px solid var(--brd2);
+  color:var(--txt2);font-family:'Space Mono',monospace;font-size:11px;width:24px;height:24px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+#pclose:hover{border-color:var(--red);color:var(--red);}
+.psl{font-size:8px;color:var(--ph);letter-spacing:.15em;margin-bottom:10px;
+  display:flex;align-items:center;gap:6px;}
+.psl::before{content:'';display:block;width:5px;height:5px;background:var(--ph);animation:blink 1s step-end infinite;}
+#pname{font-size:19px;font-weight:700;color:#fff;letter-spacing:.03em;margin-bottom:2px;}
+#palt{font-size:10px;color:var(--txt2);letter-spacing:.05em;margin-bottom:10px;}
+.pmeta{display:flex;gap:7px;flex-wrap:wrap;}
+.mchip{font-size:8px;letter-spacing:.1em;padding:2px 7px;border:1px solid var(--brd2);color:var(--txt2);}
+.mchip.elv{border-color:var(--amber);color:var(--amber);}
+#pbody{padding:14px 18px;flex:1;}
+.csec{margin-bottom:18px;}
+.chead{display:flex;align-items:center;gap:7px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--brd2);}
+.cdot{width:7px;height:7px;flex-shrink:0;}
+.clbl{font-size:8px;letter-spacing:.14em;color:var(--txt2);flex:1;}
+.cbadge{font-size:8px;font-weight:700;letter-spacing:.08em;padding:2px 7px;border:1px solid;}
+.bok{border-color:var(--ph);color:var(--ph);}
+.bw{border-color:var(--blue-w);color:var(--blue-w);}
+.ba{border-color:var(--alp);color:var(--alp);}
+.bop{border-color:var(--red);color:var(--red);animation:blink 1.5s step-end infinite;}
+.drow{display:flex;margin-bottom:5px;gap:8px;}
+.dky{font-size:8px;color:var(--txt3);letter-spacing:.1em;width:72px;flex-shrink:0;padding-top:1px;}
+.dval{font-size:10px;color:var(--txt);letter-spacing:.04em;line-height:1.5;}
+.nbox{margin-top:7px;padding:7px 9px;border-left:2px solid var(--ph-dim);
+  background:var(--ph-faint);font-size:9px;color:var(--txt2);letter-spacing:.04em;line-height:1.6;}
+.otgt{background:var(--red-dim);border:1px dashed rgba(255,43,43,.3);padding:10px;text-align:center;margin-top:4px;}
+.otl{font-size:9px;color:var(--red);letter-spacing:.15em;margin-bottom:4px;font-weight:700;}
+.otd{font-size:9px;color:rgba(255,100,100,.6);letter-spacing:.03em;line-height:1.6;}
 
 /* LEGEND */
-#legend {
-  position: absolute; bottom: 20px; left: 20px;
-  background: rgba(11,25,41,0.92); backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px; padding: 12px 16px;
-  z-index: 10;
-}
-.legend-title { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
-.legend-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.65); margin-bottom: 5px; }
-.legend-row:last-child { margin-bottom: 0; }
-.legend-marker { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.legend-open { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--open); flex-shrink: 0; }
+#legend{position:absolute;bottom:30px;left:12px;z-index:8;
+  background:rgba(3,8,13,.92);border:1px solid var(--brd2);padding:9px 12px;}
+.lt{font-size:8px;color:var(--txt3);letter-spacing:.14em;margin-bottom:7px;}
+.lr{display:flex;align-items:center;gap:7px;font-size:8px;color:var(--txt2);letter-spacing:.06em;margin-bottom:4px;}
+.lr:last-child{margin-bottom:0;}
+.lc{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.lo{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--red);flex-shrink:0;}
+
+/* COORDS */
+#cbar{position:absolute;bottom:0;left:0;right:0;height:26px;z-index:8;
+  background:rgba(3,8,13,.9);border-top:1px solid var(--brd2);
+  display:flex;align-items:center;padding:0 14px;gap:28px;}
+.ci{font-size:9px;color:var(--txt3);letter-spacing:.08em;}
+.ci span{color:var(--txt2);}
 
 /* TOOLTIP */
-#map-tooltip {
-  position: absolute; pointer-events: none;
-  background: rgba(11,25,41,0.95); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #fff;
-  opacity: 0; transition: opacity 0.12s; z-index: 20; white-space: nowrap;
-}
-#map-tooltip .tt-elev { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
-
-/* EMPTY STATE */
-#map-hint {
-  position: absolute; bottom: 20px; right: 20px;
-  font-size: 11px; color: rgba(255,255,255,0.2); letter-spacing: 0.06em;
-  pointer-events: none;
-}
-
-/* MOBILE PANEL */
-@media (max-width: 720px) {
-  #panel {
-    position: fixed; top: 0; right: 0; bottom: 0;
-    width: 100%; max-width: 420px;
-    transform: translateX(100%);
-    z-index: 100; box-shadow: -8px 0 40px rgba(0,0,0,0.4);
-  }
-  #panel.open { transform: translateX(0); }
-  #legend { bottom: 56px; }
-}
-
-/* SCROLL */
-#panel::-webkit-scrollbar { width: 4px; }
-#panel::-webkit-scrollbar-track { background: transparent; }
-#panel::-webkit-scrollbar-thumb { background: rgba(15,34,64,0.2); border-radius: 2px; }
+#tip{position:absolute;pointer-events:none;z-index:25;
+  background:rgba(3,8,13,.97);border:1px solid var(--brd);
+  padding:7px 11px;font-size:9px;color:var(--ph);letter-spacing:.06em;
+  opacity:0;transition:opacity .1s;white-space:nowrap;}
+#tip .ts{font-size:8px;color:var(--txt2);margin-top:2px;}
 </style>
 </head>
 <body>
-<div id="app">
 
-  <!-- HEADER -->
-  <header id="header">
-    <div id="header-left">
-      <div id="logo"><span>14</span> Summits</div>
-      <div id="tagline" data-i18n="tagline"></div>
-    </div>
-    <div id="lang-switcher">
-      <button class="lang-btn active" onclick="setLang('pl')">PL</button>
-      <button class="lang-btn" onclick="setLang('en')">EN</button>
-      <button class="lang-btn" onclick="setLang('np')">नेपाली</button>
-    </div>
-  </header>
-
-  <!-- FILTERS -->
-  <div id="filter-bar">
-    <span class="filter-label" data-i18n="filter-label"></span>
-    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">
-      <span data-i18n="filter-all"></span>
-    </button>
-    <button class="filter-btn" data-filter="summer" onclick="setFilter('summer')">
-      <span class="dot" style="background:var(--achieved-summer)"></span>
-      <span data-i18n="filter-summer"></span>
-    </button>
-    <button class="filter-btn" data-filter="winter" onclick="setFilter('winter')">
-      <span class="dot" style="background:var(--achieved-winter)"></span>
-      <span data-i18n="filter-winter"></span>
-    </button>
-    <button class="filter-btn" data-filter="alpine" onclick="setFilter('alpine')">
-      <span class="dot" style="background:var(--achieved-alpine)"></span>
-      <span data-i18n="filter-alpine"></span>
-    </button>
-    <button class="filter-btn" data-filter="open" onclick="setFilter('open')">
-      <span class="dot" style="background:var(--open)"></span>
-      <span data-i18n="filter-open"></span>
-    </button>
-  </div>
-
-  <!-- MAIN -->
-  <div id="main">
-    <div id="map-container">
-      <svg id="map"></svg>
-      <div id="legend">
-        <div class="legend-title" data-i18n="legend-title"></div>
-        <div class="legend-row"><div class="legend-marker" style="background:var(--achieved-summer)"></div><span data-i18n="leg-summer"></span></div>
-        <div class="legend-row"><div class="legend-marker" style="background:var(--achieved-winter)"></div><span data-i18n="leg-winter"></span></div>
-        <div class="legend-row"><div class="legend-marker" style="background:var(--achieved-alpine)"></div><span data-i18n="leg-alpine"></span></div>
-        <div class="legend-row"><div class="legend-open"></div><span data-i18n="leg-open"></span></div>
-      </div>
-      <div id="map-hint" data-i18n="map-hint"></div>
-      <div id="map-tooltip"><div id="tt-name"></div><div class="tt-elev" id="tt-elev"></div></div>
-    </div>
-
-    <!-- DETAIL PANEL -->
-    <div id="panel">
-      <div id="panel-header">
-        <button id="panel-close" onclick="closePanel()">✕</button>
-        <div id="panel-peak-name"></div>
-        <div id="panel-peak-name-native"></div>
-        <div id="panel-elevation"></div>
-        <div id="panel-location"></div>
-      </div>
-      <div id="panel-body"></div>
-    </div>
+<!-- ══ LANDING ══════════════════════════════════════════════════════════════ -->
+<div id="landing">
+  <div id="landing-stars"></div>
+  <div id="lc">
+    <div class="l-tag">BAZA DANYCH // 14 OŚMIOTYSIĘCZNIKÓW // DOSTĘP ZASTRZEŻONY</div>
+    <h1 class="l-title">K2 ZIMĄ<br><em>ZDOBYTE?</em></h1>
+    <p class="l-punch">
+      W 2021 roku świat świętował zdobycie K2 zimą.<br>
+      <strong>Nikt nie powiedział wam całej prawdy.</strong><br>
+      Styl alpejski zimą — na żadnym z 14 ośmiotysięczników — nie istnieje.
+    </p>
+    <button id="btn-start" onclick="startSequence()">▶ &nbsp;INICJUJ DOSTĘP DO BAZY</button>
+    <div class="l-hint">[ NACIŚNIJ ABY KONTYNUOWAĆ ]</div>
   </div>
 </div>
 
+<!-- ══ GLOBE ═════════════════════════════════════════════════════════════════ -->
+<div id="globe-layer">
+  <svg id="globe-svg"></svg>
+</div>
+
+<!-- ══ APP ══════════════════════════════════════════════════════════════════ -->
+<div id="app">
+<header id="header">
+  <div id="sys"><div class="bdot"></div><span data-i18n="sys"></span></div>
+  <div id="logo"><em>14</em> SUMMITS <small>// <span data-i18n="tg"></span></small></div>
+  <div id="clock"></div>
+  <div id="lang-sw">
+    <button class="lbtn active" onclick="setLang('pl')">PL</button>
+    <button class="lbtn" onclick="setLang('en')">EN</button>
+    <button class="lbtn" onclick="setLang('np')">NP</button>
+  </div>
+</header>
+<div id="fbar">
+  <span class="fp">&gt; <span data-i18n="fl"></span></span>
+  <button class="fbtn active" data-filter="all"    onclick="setFilter('all')"   ><span data-i18n="fa"></span></button>
+  <button class="fbtn" data-filter="summer" onclick="setFilter('summer')"><span class="fd" style="background:#4db8ff"></span><span data-i18n="fs"></span></button>
+  <button class="fbtn" data-filter="winter" onclick="setFilter('winter')"><span class="fd" style="background:#7ee3ff"></span><span data-i18n="fw"></span></button>
+  <button class="fbtn" data-filter="alpine" onclick="setFilter('alpine')"><span class="fd" style="background:#7be850"></span><span data-i18n="fal"></span></button>
+  <button class="fbtn" data-filter="open"   onclick="setFilter('open')"  ><span class="fd" style="background:#ff2b2b"></span><span data-i18n="fo"></span></button>
+</div>
+<div id="map-sec">
+  <svg id="map-svg"></svg>
+  <svg id="leader-svg"></svg>
+  <div id="legend">
+    <div class="lt" data-i18n="leg"></div>
+    <div class="lr"><div class="lc" style="background:#4db8ff"></div><span data-i18n="ls"></span></div>
+    <div class="lr"><div class="lc" style="background:#7ee3ff"></div><span data-i18n="lw"></span></div>
+    <div class="lr"><div class="lc" style="background:#7be850"></div><span data-i18n="la"></span></div>
+    <div class="lr"><div class="lo"></div><span data-i18n="lo"></span></div>
+  </div>
+  <div id="cbar">
+    <div class="ci">LAT <span id="c-lat">—</span></div>
+    <div class="ci">LNG <span id="c-lng">—</span></div>
+    <div class="ci" data-i18n="ct"></div>
+    <div class="ci" id="c-pk" style="color:var(--ph)"></div>
+  </div>
+  <div id="tip"><div id="tn"></div><div class="ts" id="ts2"></div></div>
+  <div id="panel">
+    <div id="ptop">
+      <button id="pclose" onclick="closePanel()">✕</button>
+      <div class="psl" data-i18n="acq"></div>
+      <div id="pname"></div>
+      <div id="palt"></div>
+      <div class="pmeta">
+        <div class="mchip elv" id="p-el"></div>
+        <div class="mchip" id="p-lo"></div>
+        <div class="mchip" id="p-co"></div>
+      </div>
+    </div>
+    <div id="pbody"></div>
+  </div>
+</div>
+</div><!-- #app -->
+
 <script>
-// ─── TRANSLATIONS ──────────────────────────────────────────────────────────
-const I18N = {
-  pl: {
-    tagline: 'Pierwsze wejścia na ośmiotysięczniki',
-    'filter-label': 'Kategoria:',
-    'filter-all': 'Wszystkie',
-    'filter-summer': 'Letnie',
-    'filter-winter': 'Zimowe',
-    'filter-alpine': 'Alpejskie',
-    'filter-open': 'Otwarte',
-    'legend-title': 'Legenda',
-    'leg-summer': 'Pierwsze wejście letnie',
-    'leg-winter': 'Pierwsze zimowe',
-    'leg-alpine': 'Styl alpejski',
-    'leg-open': 'Nieukończone',
-    'map-hint': 'Kliknij szczyt aby zobaczyć szczegóły',
-    'cat-summer': 'Pierwsze wejście letnie',
-    'cat-winter': 'Pierwsze wejście zimowe',
-    'cat-alpine': 'Styl alpejski (letni)',
-    'cat-alpine-winter': 'Styl alpejski zimowy',
-    'done': 'Ukończone',
-    'open': 'Otwarte',
-    'year': 'Rok',
-    'climbers': 'Wspinacze',
-    'country': 'Kraj',
-    'style': 'Styl',
-    'oxygen': 'Tlen',
-    'expedition': 'Oblężniczy',
-    'alpine': 'Alpejski',
-    'yes': 'Tak',
-    'no': 'Nie',
-    'mixed': 'Mieszany',
-    'location': 'Lokalizacja',
-    'elevation': 'm n.p.m.',
-  },
-  en: {
-    tagline: 'First ascents of the eight-thousanders',
-    'filter-label': 'Category:',
-    'filter-all': 'All',
-    'filter-summer': 'Summer',
-    'filter-winter': 'Winter',
-    'filter-alpine': 'Alpine style',
-    'filter-open': 'Open',
-    'legend-title': 'Legend',
-    'leg-summer': 'First summer ascent',
-    'leg-winter': 'First winter ascent',
-    'leg-alpine': 'Alpine style',
-    'leg-open': 'Unachieved',
-    'map-hint': 'Click a peak to see details',
-    'cat-summer': 'First summer ascent',
-    'cat-winter': 'First winter ascent',
-    'cat-alpine': 'Alpine style (summer)',
-    'cat-alpine-winter': 'Alpine style (winter)',
-    'done': 'Done',
-    'open': 'Open',
-    'year': 'Year',
-    'climbers': 'Climbers',
-    'country': 'Country',
-    'style': 'Style',
-    'oxygen': 'Oxygen',
-    'expedition': 'Expedition',
-    'alpine': 'Alpine',
-    'yes': 'Yes',
-    'no': 'No',
-    'mixed': 'Mixed',
-    'location': 'Location',
-    'elevation': 'm a.s.l.',
-  },
-  np: {
-    tagline: 'आठ हजार मिटरका हिमालको पहिलो आरोहण',
-    'filter-label': 'श्रेणी:',
-    'filter-all': 'सबै',
-    'filter-summer': 'ग्रीष्म',
-    'filter-winter': 'हिउँद',
-    'filter-alpine': 'अल्पाइन शैली',
-    'filter-open': 'अपूर्ण',
-    'legend-title': 'लेजेन्ड',
-    'leg-summer': 'पहिलो ग्रीष्म आरोहण',
-    'leg-winter': 'पहिलो हिउँद आरोहण',
-    'leg-alpine': 'अल्पाइन शैली',
-    'leg-open': 'अपूर्ण',
-    'map-hint': 'विवरणका लागि शिखर क्लिक गर्नुहोस्',
-    'cat-summer': 'पहिलो ग्रीष्म आरोहण',
-    'cat-winter': 'पहिलो हिउँद आरोहण',
-    'cat-alpine': 'अल्पाइन शैली (ग्रीष्म)',
-    'cat-alpine-winter': 'अल्पाइन शैली (हिउँद)',
-    'done': 'सम्पन्न',
-    'open': 'अपूर्ण',
-    'year': 'वर्ष',
-    'climbers': 'आरोही',
-    'country': 'देश',
-    'style': 'शैली',
-    'oxygen': 'अक्सिजन',
-    'expedition': 'अभियान शैली',
-    'alpine': 'अल्पाइन',
-    'yes': 'हो',
-    'no': 'होइन',
-    'mixed': 'मिश्रित',
-    'location': 'स्थान',
-    'elevation': 'मि.',
-  }
+// ══ I18N ═════════════════════════════════════════════════════════════════════
+const T={
+  pl:{sys:'SYSTEM AKTYWNY',tg:'BAZA DANYCH',fl:'FILTR',fa:'WSZYSTKIE',fs:'LETNIE',fw:'ZIMOWE',fal:'ALPEJSKIE',fo:'OTWARTE',
+    leg:'LEGENDA',ls:'PIERWSZE LETNIE',lw:'PIERWSZE ZIMOWE',la:'STYL ALPEJSKI',lo:'NIEUKOŃCZONE',ct:'14 CELÓW',acq:'OBIEKT NAMIERZONY',
+    yr:'ROK',cl:'OPERATORZY',co:'KRAJ',st:'STYL',ox:'TLEN',done:'POTWIERDZONE',open:'OTWARTE',
+    exp:'OBLĘŻNICZY',alp:'ALPEJSKI',yes:'TAK',no:'NIE',mixed:'MIESZANY',els:'M N.P.M.',
+    cats:'PIERWSZE WEJŚCIE LETNIE',catw:'PIERWSZE WEJŚCIE ZIMOWE',cata:'STYL ALPEJSKI (LETNI)',cataw:'STYL ALPEJSKI ZIMOWY',
+    odesc:'Żaden operator nie wykonał wejścia w stylu alpejskim zimą. Cel pozostaje otwarty na wszystkich 14 ośmiotysięcznikach.'},
+  en:{sys:'SYSTEM ACTIVE',tg:'TACTICAL DATABASE',fl:'FILTER',fa:'ALL',fs:'SUMMER',fw:'WINTER',fal:'ALPINE',fo:'OPEN',
+    leg:'LEGEND',ls:'FIRST SUMMER',lw:'FIRST WINTER',la:'ALPINE STYLE',lo:'UNACHIEVED',ct:'14 TARGETS',acq:'OBJECT ACQUIRED',
+    yr:'YEAR',cl:'OPERATORS',co:'COUNTRY',st:'STYLE',ox:'OXYGEN',done:'CONFIRMED',open:'OPEN',
+    exp:'EXPEDITION',alp:'ALPINE',yes:'YES',no:'NO',mixed:'MIXED',els:'M A.S.L.',
+    cats:'FIRST SUMMER ASCENT',catw:'FIRST WINTER ASCENT',cata:'ALPINE STYLE (SUMMER)',cataw:'ALPINE STYLE WINTER',
+    odesc:'No operator has achieved an alpine style winter ascent. Target remains open on all 14 eight-thousanders.'},
+  np:{sys:'सिस्टम सक्रिय',tg:'डेटाबेस',fl:'फिल्टर',fa:'सबै',fs:'ग्रीष्म',fw:'हिउँद',fal:'अल्पाइन',fo:'अपूर्ण',
+    leg:'लेजेन्ड',ls:'पहिलो ग्रीष्म',lw:'पहिलो हिउँद',la:'अल्पाइन शैली',lo:'अपूर्ण',ct:'१४ लक्ष्य',acq:'लक्ष्य प्राप्त',
+    yr:'वर्ष',cl:'आरोही',co:'देश',st:'शैली',ox:'अक्सिजन',done:'सम्पन्न',open:'अपूर्ण',
+    exp:'अभियान',alp:'अल्पाइन',yes:'हो',no:'होइन',mixed:'मिश्रित',els:'मि.',
+    cats:'पहिलो ग्रीष्म आरोहण',catw:'पहिलो हिउँद आरोहण',cata:'अल्पाइन शैली (ग्रीष्म)',cataw:'अल्पाइन शैली हिउँद',
+    odesc:'कुनै पनि आरोहीले हिउँदमा अल्पाइन शैलीमा आरोहण गरेका छैनन्।'}
+};
+let lang='pl';
+function t(k){return T[lang][k]||T.en[k]||k;}
+function setLang(l){lang=l;document.querySelectorAll('.lbtn').forEach(b=>b.classList.toggle('active',b.textContent.trim().toLowerCase()===l||(l==='np'&&b.textContent==='NP')));applyI18n();if(activePeak)renderPanel(activePeak);}
+function applyI18n(){document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));rebuildCards();}
+
+// ══ CLOCK ════════════════════════════════════════════════════════════════════
+function tick(){const n=new Date(),p=x=>String(x).padStart(2,'0');const el=document.getElementById('clock');if(el)el.textContent=`${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}  ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}  UTC+1`;}
+tick();setInterval(tick,1000);
+
+// ══ DATA ════════════════════════════════════════════════════════════════════
+// Pixel offsets from marker center (dx, dy)
+const OFFSETS={
+  // Karakoram — fanned radially
+  'nanga-parbat':  {dx:-160,dy:-20},   // LEFT (isolated)
+  'k2':            {dx:-160,dy:-95},   // UP-LEFT
+  'broad-peak':    {dx:-160,dy: 55},   // DOWN-LEFT
+  'gasherbrum-i':  {dx:  20,dy:-90},  // UP-RIGHT
+  'gasherbrum-ii': {dx:  20,dy: 25},  // DOWN-RIGHT
+  // Nepal western
+  'dhaulagiri':    {dx:-160,dy:-90},  // UP-LEFT
+  'annapurna':     {dx:  20,dy: 160}, // FAR DOWN-RIGHT (free south area)
+  'manaslu':       {dx:-160,dy: 160}, // FAR DOWN-LEFT (free south area)
+  // Nepal central/eastern — Everest cluster
+  'shishapangma':  {dx:  20,dy:-160}, // FAR UP-RIGHT (free north area)
+  'cho-oyu':       {dx:-160,dy:-20},  // LEFT
+  'everest':       {dx:-160,dy: 55},  // DOWN-LEFT
+  'lhotse':        {dx:  20,dy: 15},  // RIGHT
+  'makalu':        {dx:  20,dy: 95},  // DOWN-RIGHT
+  'kangchenjunga': {dx:  20,dy:-90},  // UP-RIGHT (isolated east)
 };
 
-let lang = 'pl';
-function t(key) { return I18N[lang][key] || I18N.en[key] || key; }
-function setLang(l) {
-  lang = l;
-  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === l || (l==='np' && b.textContent.includes('नेपाली'))));
-  applyI18n();
-  if (activePeak) openPanel(activePeak);
-}
-function applyI18n() {
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.dataset.i18n);
-  });
-}
+const PEAKS=[
+  {id:'everest',rank:1,names:{pl:'EVEREST',en:'EVEREST',np:'सगरमाथा'},alt:'SAGARMATHA',elev:8849,lat:27.9881,lng:86.9250,loc:{pl:'NEPAL / CHINY',en:'NEPAL / CHINA',np:'नेपाल / चीन'},
+    summer:{yr:1953,cl:'HILLARY, TENZING NORGAY',co:'NZ / NEPAL',st:'expedition',ox:'yes'},
+    winter:{yr:1980,cl:'WIELICKI, CICHY',co:'POLSKA',st:'expedition',ox:'yes'},alpine:null,alpineWinter:null},
 
-// ─── PEAK DATA ─────────────────────────────────────────────────────────────
-const PEAKS = [
-  {
-    id: 'everest', rank: 1,
-    names: { pl: 'Everest', en: 'Everest', np: 'सगरमाथा' },
-    altName: 'Sagarmatha / Chomolungma',
-    elevation: 8849, lat: 27.9881, lng: 86.9250,
-    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
-    summer: {
-      year: 1953, style: 'expedition', oxygen: 'yes',
-      climbers: 'Edmund Hillary, Tenzing Norgay',
-      country: 'Nowa Zelandia / Nepal'
-    },
-    winter: {
-      year: 1980, style: 'expedition', oxygen: 'yes',
-      climbers: 'Krzysztof Wielicki, Leszek Cichy',
-      country: 'Polska'
-    },
-    alpine: null,
-    alpineWinter: null
-  },
-  {
-    id: 'k2', rank: 2,
-    names: { pl: 'K2', en: 'K2', np: 'के२' },
-    altName: 'Chogori',
-    elevation: 8611, lat: 35.8825, lng: 76.5133,
-    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
-    summer: {
-      year: 1954, style: 'expedition', oxygen: 'no',
-      climbers: 'Achille Compagnoni, Lino Lacedelli',
-      country: 'Włochy'
-    },
-    winter: {
-      year: 2021, style: 'expedition', oxygen: 'mixed',
-      climbers: 'Nirmal Purja i 9 Nepalczyków',
-      country: 'Nepal',
-      note: { pl: '9 wspinaczy korzystało z tlenu, 1 (Nirmal Purja) bez tlenu. Cały zespół działał w stylu oblężniczym — stałe liny, bazy pośrednie, duży team.', en: '9 climbers used supplementary oxygen, 1 (Nirmal Purja) without. The team used fixed ropes, intermediate camps — expedition style.', np: '९ आरोहीले अक्सिजन प्रयोग गरे, १ (निर्मल पुर्जा) बिना अक्सिजन। दल अभियान शैलीमा थियो।' }
-    },
-    alpine: null,
-    alpineWinter: null,
-    isMain: true
-  },
-  {
-    id: 'kangchenjunga', rank: 3,
-    names: { pl: 'Kangczendzonga', en: 'Kangchenjunga', np: 'कञ्चनजङ्घा' },
-    elevation: 8586, lat: 27.7025, lng: 88.1475,
-    location: { pl: 'Nepal / Indie', en: 'Nepal / India', np: 'नेपाल / भारत' },
-    summer: {
-      year: 1955, style: 'expedition', oxygen: 'yes',
-      climbers: 'George Band, Joe Brown',
-      country: 'Wielka Brytania'
-    },
-    winter: {
-      year: 1986, style: 'expedition', oxygen: 'no',
-      climbers: 'Jerzy Kukuczka, Krzysztof Wielicki',
-      country: 'Polska'
-    },
-    alpine: null, alpineWinter: null
-  },
-  {
-    id: 'lhotse', rank: 4,
-    names: { pl: 'Lhotse', en: 'Lhotse', np: 'ल्होत्से' },
-    elevation: 8516, lat: 27.9617, lng: 86.9330,
-    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
-    summer: {
-      year: 1956, style: 'expedition', oxygen: 'yes',
-      climbers: 'Fritz Luchsinger, Ernst Reiss',
-      country: 'Szwajcaria'
-    },
-    winter: {
-      year: 1988, style: 'expedition', oxygen: 'no',
-      climbers: 'Krzysztof Wielicki',
-      country: 'Polska'
-    },
-    alpine: null, alpineWinter: null
-  },
-  {
-    id: 'makalu', rank: 5,
-    names: { pl: 'Makalu', en: 'Makalu', np: 'मकालु' },
-    elevation: 8485, lat: 27.8897, lng: 87.0886,
-    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
-    summer: {
-      year: 1955, style: 'expedition', oxygen: 'yes',
-      climbers: 'Jean Couzy, Lionel Terray',
-      country: 'Francja'
-    },
-    winter: {
-      year: 2009, style: 'expedition', oxygen: 'no',
-      climbers: 'Denis Urubko, Simone Moro',
-      country: 'Kazachstan / Włochy'
-    },
-    alpine: null, alpineWinter: null
-  },
-  {
-    id: 'cho-oyu', rank: 6,
-    names: { pl: 'Czo Oju', en: 'Cho Oyu', np: 'चो ओयु' },
-    elevation: 8188, lat: 28.0942, lng: 86.6607,
-    location: { pl: 'Nepal / Chiny', en: 'Nepal / China', np: 'नेपाल / चीन' },
-    summer: {
-      year: 1954, style: 'alpine', oxygen: 'no',
-      climbers: 'Herbert Tichy, Sepp Jöchler, Pasang Dawa Lama',
-      country: 'Austria',
-      note: { pl: 'Pierwsze wejście na ośmiotysięcznik w stylu alpejskim — mały zespół, bez stałych lin, bez O₂.', en: 'First 8000m peak climbed in alpine style — small team, no fixed ropes, no supplemental O₂.', np: 'अल्पाइन शैलीमा पहिलो ८०००मि आरोहण।' }
-    },
-    winter: {
-      year: 1985, style: 'expedition', oxygen: 'yes',
-      climbers: 'Maciej Berbeka, Maciej Pawlikowski',
-      country: 'Polska'
-    },
-    alpine: {
-      year: 1954,
-      note: { pl: 'Pierwsze wejście było już w stylu alpejskim.', en: 'First ascent was already alpine style.', np: 'पहिलो आरोहण नै अल्पाइन शैलीमा थियो।' }
-    },
-    alpineWinter: null
-  },
-  {
-    id: 'dhaulagiri', rank: 7,
-    names: { pl: 'Dhaulagiri', en: 'Dhaulagiri', np: 'धौलागिरि' },
-    elevation: 8167, lat: 28.6983, lng: 83.4869,
-    location: { pl: 'Nepal', en: 'Nepal', np: 'नेपाल' },
-    summer: {
-      year: 1960, style: 'expedition', oxygen: 'no',
-      climbers: 'Kurt Diemberger, Peter Diener, Ernst Forrer, Albin Schelbert, Nawang Dorje, Nyima Dorje',
-      country: 'Szwajcaria / Austria'
-    },
-    winter: {
-      year: 1985, style: 'expedition', oxygen: 'no',
-      climbers: 'Jerzy Kukuczka, Andrzej Czok',
-      country: 'Polska'
-    },
-    alpine: null, alpineWinter: null
-  },
-  {
-    id: 'manaslu', rank: 8,
-    names: { pl: 'Manaslu', en: 'Manaslu', np: 'मनास्लु' },
-    elevation: 8163, lat: 28.5500, lng: 84.5592,
-    location: { pl: 'Nepal', en: 'Nepal', np: 'नेपाल' },
-    summer: {
-      year: 1956, style: 'expedition', oxygen: 'yes',
-      climbers: 'Toshio Imanishi, Gyalzen Norbu',
-      country: 'Japonia'
-    },
-    winter: {
-      year: 1984, style: 'expedition', oxygen: 'no',
-      climbers: 'Maciej Berbeka, Ryszard Gajewski',
-      country: 'Polska'
-    },
-    alpine: null, alpineWinter: null
-  },
-  {
-    id: 'nanga-parbat', rank: 9,
-    names: { pl: 'Nanga Parbat', en: 'Nanga Parbat', np: 'नंगा परबत' },
-    altName: 'Killer Mountain',
-    elevation: 8126, lat: 35.2372, lng: 74.5892,
-    location: { pl: 'Pakistan', en: 'Pakistan', np: 'पाकिस्तान' },
-    summer: {
-      year: 1953, style: 'alpine', oxygen: 'no',
-      climbers: 'Hermann Buhl',
-      country: 'Austria',
-      note: { pl: 'Legendarny samotny atak szczytowy Hermanna Buhla — solo, bez tlenu, w stylu alpejskim. Powrót w nocy w ekstremalnym zimnie.', en: "Hermann Buhl's legendary solo summit push — no oxygen, alpine style, returning in extreme cold and darkness.", np: 'हर्मन बुलको एकल आरोहण — बिना अक्सिजन, अल्पाइन शैली।' }
-    },
-    winter: {
-      year: 2016, style: 'expedition', oxygen: 'no',
-      climbers: 'Ali Sadpara, Simone Moro, Alex Txikon',
-      country: 'Pakistan / Włochy / Hiszpania'
-    },
-    alpine: {
-      year: 1953,
-      note: { pl: 'Pierwsze wejście było w stylu alpejskim (solo Buhl).', en: 'First ascent was alpine style (Buhl solo).', np: 'पहिलो आरोहण अल्पाइन शैली (बुलको एकल) थियो।' }
-    },
-    alpineWinter: null
-  },
-  {
-    id: 'annapurna', rank: 10,
-    names: { pl: 'Annapurna', en: 'Annapurna', np: 'अन्नपूर्ण' },
-    elevation: 8091, lat: 28.5967, lng: 83.8200,
-    location: { pl: 'Nepal', en: 'Nepal', np: 'नेपाल' },
-    summer: {
-      year: 1950, style: 'expedition', oxygen: 'no',
-      climbers: 'Maurice Herzog, Louis Lachenal',
-      country: 'Francja',
-      note: { pl: 'Pierwszy ośmiotysięcznik zdobyty przez człowieka.', en: 'First 8000m peak ever summited.', np: 'मानव इतिहासमा पहिलो ८०००मि शिखर।' }
-    },
-    winter: {
-      year: 1987, style: 'expedition', oxygen: 'no',
-      climbers: 'Jerzy Kukuczka, Artur Hajzer',
-      country: 'Polska'
-    },
-    alpine: null, alpineWinter: null
-  },
-  {
-    id: 'gasherbrum-i', rank: 11,
-    names: { pl: 'Gasherbrum I', en: 'Gasherbrum I', np: 'गाशेरब्रुम I' },
-    altName: 'Hidden Peak',
-    elevation: 8080, lat: 35.7244, lng: 76.6964,
-    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
-    summer: {
-      year: 1958, style: 'expedition', oxygen: 'no',
-      climbers: 'Andrew Kauffman, Peter Schoening',
-      country: 'USA'
-    },
-    winter: {
-      year: 2012, style: 'expedition', oxygen: 'no',
-      climbers: 'Adam Bielecki, Janusz Gołąb',
-      country: 'Polska'
-    },
-    alpine: {
-      year: 1975,
-      climbers: 'Reinhold Messner, Peter Habeler',
-      country: 'Włochy / Austria',
-      note: { pl: 'Rewolucyjne wejście Messnera i Habelera — pierwsze na ośmiotysięcznik bez stałych lin, bez dużego zespołu. Zmienili definicję alpinizmu wysokogórskiego.', en: 'Revolutionary ascent by Messner & Habeler — first 8000m peak in pure alpine style: no fixed ropes, no large team. Redefined high-altitude mountaineering.', np: 'मेस्नर र हेबेलरको क्रान्तिकारी आरोहण — पहिलो शुद्ध अल्पाइन शैली।' }
-    },
-    alpineWinter: null
-  },
-  {
-    id: 'broad-peak', rank: 12,
-    names: { pl: 'Broad Peak', en: 'Broad Peak', np: 'ब्रड पिक' },
-    elevation: 8051, lat: 35.8108, lng: 76.5647,
-    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
-    summer: {
-      year: 1957, style: 'alpine', oxygen: 'no',
-      climbers: 'Fritz Wintersteller, Marcus Schmuck, Kurt Diemberger, Hermann Buhl',
-      country: 'Austria',
-      note: { pl: 'Czyste wejście alpejskie — czteroosobowy zespół, zero stałych lin, zero tlenu. Wzorzec dla późniejszego alpinizmu wysokogórskiego.', en: 'Pure alpine ascent — four-person team, zero fixed ropes, zero oxygen. A template for future high-altitude alpine climbing.', np: 'शुद्ध अल्पाइन आरोहण — चार जनाको दल, स्थायी डोरी र अक्सिजन बिना।' }
-    },
-    winter: {
-      year: 2013, style: 'expedition', oxygen: 'no',
-      climbers: 'Maciej Berbeka, Tomasz Kowalski, Adam Bielecki, Artur Małek',
-      country: 'Polska',
-      note: { pl: 'Tragiczne wejście — Berbeka i Kowalski zginęli podczas zejścia.', en: 'Tragic ascent — Berbeka and Kowalski died during descent.', np: 'दुखद आरोहण — बेरबेका र कोवाल्स्की अवरोहणमा मारिए।' }
-    },
-    alpine: {
-      year: 1957,
-      note: { pl: 'Pierwsze wejście było w pełni w stylu alpejskim.', en: 'First ascent was fully alpine style.', np: 'पहिलो आरोहण पूर्णतः अल्पाइन शैलीमा थियो।' }
-    },
-    alpineWinter: null
-  },
-  {
-    id: 'gasherbrum-ii', rank: 13,
-    names: { pl: 'Gasherbrum II', en: 'Gasherbrum II', np: 'गाशेरब्रुम II' },
-    elevation: 8035, lat: 35.7578, lng: 76.6531,
-    location: { pl: 'Pakistan / Chiny', en: 'Pakistan / China', np: 'पाकिस्तान / चीन' },
-    summer: {
-      year: 1956, style: 'expedition', oxygen: 'no',
-      climbers: 'Fritz Moravec, Josef Larch, Hans Willenpart',
-      country: 'Austria'
-    },
-    winter: {
-      year: 2011, style: 'expedition', oxygen: 'no',
-      climbers: 'Simone Moro, Denis Urubko, Cory Richards',
-      country: 'Włochy / Kazachstan / USA'
-    },
-    alpine: null, alpineWinter: null
-  },
-  {
-    id: 'shishapangma', rank: 14,
-    names: { pl: 'Shishapangma', en: 'Shishapangma', np: 'शिशापाङमा' },
-    altName: 'Gosainthan',
-    elevation: 8027, lat: 28.3525, lng: 85.7786,
-    location: { pl: 'Chiny (Tybet)', en: 'China (Tibet)', np: 'चीन (तिब्बत)' },
-    summer: {
-      year: 1964, style: 'expedition', oxygen: 'no',
-      climbers: 'Xu Jing i zespół',
-      country: 'Chiny'
-    },
-    winter: {
-      year: 2005, style: 'expedition', oxygen: 'no',
-      climbers: 'Piotr Morawski, Simone Moro',
-      country: 'Polska / Włochy'
-    },
-    alpine: null, alpineWinter: null
-  }
+  {id:'k2',rank:2,names:{pl:'K2',en:'K2',np:'के२'},alt:'CHOGORI',elev:8611,lat:35.8825,lng:76.5133,loc:{pl:'PAKISTAN / CHINY',en:'PAKISTAN / CHINA',np:'पाकिस्तान / चीन'},isMain:true,
+    summer:{yr:1954,cl:'COMPAGNONI, LACEDELLI',co:'WŁOCHY',st:'expedition',ox:'no'},
+    winter:{yr:2021,cl:'NIRMAL PURJA +9',co:'NEPAL',st:'expedition',ox:'mixed',
+      note:{pl:'9 używało tlenu. Nirmal Purja bez. Styl oblężniczy — stałe liny, bazy pośrednie. Alpine style zimą: OTWARTE.',en:'9 used O₂. Nirmal Purja without. Expedition style — fixed ropes, camps. Alpine winter: OPEN.',np:'९ ले अक्सिजन प्रयोग गरे। दल अभियान शैली।'}},
+    alpine:null,alpineWinter:null},
+
+  {id:'kangchenjunga',rank:3,names:{pl:'KANGCZENDZONGA',en:'KANGCHENJUNGA',np:'कञ्चनजङ्घा'},elev:8586,lat:27.7025,lng:88.1475,loc:{pl:'NEPAL / INDIE',en:'NEPAL / INDIA',np:'नेपाल / भारत'},
+    summer:{yr:1955,cl:'BAND, BROWN',co:'WIELKA BRYTANIA',st:'expedition',ox:'yes'},
+    winter:{yr:1986,cl:'KUKUCZKA, WIELICKI',co:'POLSKA',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
+
+  {id:'lhotse',rank:4,names:{pl:'LHOTSE',en:'LHOTSE',np:'ल्होत्से'},elev:8516,lat:27.9617,lng:86.9330,loc:{pl:'NEPAL / CHINY',en:'NEPAL / CHINA',np:'नेपाल / चीन'},
+    summer:{yr:1956,cl:'LUCHSINGER, REISS',co:'SZWAJCARIA',st:'expedition',ox:'yes'},
+    winter:{yr:1988,cl:'WIELICKI',co:'POLSKA',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
+
+  {id:'makalu',rank:5,names:{pl:'MAKALU',en:'MAKALU',np:'मकालु'},elev:8485,lat:27.8897,lng:87.0886,loc:{pl:'NEPAL / CHINY',en:'NEPAL / CHINA',np:'नेपाल / चीन'},
+    summer:{yr:1955,cl:'COUZY, TERRAY',co:'FRANCJA',st:'expedition',ox:'yes'},
+    winter:{yr:2009,cl:'URUBKO, MORO',co:'KAZ / WŁOCHY',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
+
+  {id:'cho-oyu',rank:6,names:{pl:'CHO OYU',en:'CHO OYU',np:'चो ओयु'},elev:8188,lat:28.0942,lng:86.6607,loc:{pl:'NEPAL / CHINY',en:'NEPAL / CHINA',np:'नेपाल / चीन'},
+    summer:{yr:1954,cl:'TICHY, JÖCHLER, PASANG DAWA LAMA',co:'AUSTRIA',st:'alpine',ox:'no',note:{pl:'Pierwsze wejście na ośmiotysięcznik w stylu alpejskim.',en:'First 8000m peak in alpine style.',np:'पहिलो अल्पाइन।'}},
+    winter:{yr:1985,cl:'BERBEKA, PAWLIKOWSKI',co:'POLSKA',st:'expedition',ox:'yes'},
+    alpine:{yr:1954,note:{pl:'Pierwsze wejście = alpine style.',en:'First ascent = alpine style.',np:'पहिलो आरोहण अल्पाइन।'}},alpineWinter:null},
+
+  {id:'dhaulagiri',rank:7,names:{pl:'DHAULAGIRI',en:'DHAULAGIRI',np:'धौलागिरि'},elev:8167,lat:28.6983,lng:83.4869,loc:{pl:'NEPAL',en:'NEPAL',np:'नेपाल'},
+    summer:{yr:1960,cl:'DIEMBERGER, DIENER +4',co:'SUI / AUT',st:'expedition',ox:'no'},
+    winter:{yr:1985,cl:'KUKUCZKA, CZOK',co:'POLSKA',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
+
+  {id:'manaslu',rank:8,names:{pl:'MANASLU',en:'MANASLU',np:'मनास्लु'},elev:8163,lat:28.5500,lng:84.5592,loc:{pl:'NEPAL',en:'NEPAL',np:'नेपाल'},
+    summer:{yr:1956,cl:'IMANISHI, GYALZEN NORBU',co:'JAPONIA',st:'expedition',ox:'yes'},
+    winter:{yr:1984,cl:'BERBEKA, GAJEWSKI',co:'POLSKA',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
+
+  {id:'nanga-parbat',rank:9,names:{pl:'NANGA PARBAT',en:'NANGA PARBAT',np:'नंगा परबत'},alt:'KILLER MTN',elev:8126,lat:35.2372,lng:74.5892,loc:{pl:'PAKISTAN',en:'PAKISTAN',np:'पाकिस्तान'},
+    summer:{yr:1953,cl:'BUHL',co:'AUSTRIA',st:'alpine',ox:'no',note:{pl:'Solo Buhla — bez tlenu, bez asysty, styl alpejski.',en:"Buhl's solo — no oxygen, no support, alpine style.",np:'बुलको एकल अल्पाइन।'}},
+    winter:{yr:2016,cl:'SADPARA, MORO, TXIKON',co:'PAK / ITA / ESP',st:'expedition',ox:'no'},
+    alpine:{yr:1953,note:{pl:'Pierwsze wejście = solo alpine (Buhl).',en:'First ascent = solo alpine (Buhl).',np:'पहिलो एकल अल्पाइन।'}},alpineWinter:null},
+
+  {id:'annapurna',rank:10,names:{pl:'ANNAPURNA',en:'ANNAPURNA',np:'अन्नपूर्ण'},elev:8091,lat:28.5967,lng:83.8200,loc:{pl:'NEPAL',en:'NEPAL',np:'नेपाल'},
+    summer:{yr:1950,cl:'HERZOG, LACHENAL',co:'FRANCJA',st:'expedition',ox:'no',note:{pl:'Pierwszy ośmiotysięcznik w historii.',en:'First 8000m peak ever summited.',np:'पहिलो ८०००मि शिखर।'}},
+    winter:{yr:1987,cl:'KUKUCZKA, HAJZER',co:'POLSKA',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
+
+  {id:'gasherbrum-i',rank:11,names:{pl:'GASHERBRUM I',en:'GASHERBRUM I',np:'गाशेरब्रुम I'},alt:'HIDDEN PK',elev:8080,lat:35.7244,lng:76.6964,loc:{pl:'PAKISTAN / CHINY',en:'PAKISTAN / CHINA',np:'पाकिस्तान / चीन'},
+    summer:{yr:1958,cl:'KAUFFMAN, SCHOENING',co:'USA',st:'expedition',ox:'no'},
+    winter:{yr:2012,cl:'BIELECKI, GOŁĄB',co:'POLSKA',st:'expedition',ox:'no'},
+    alpine:{yr:1975,cl:'MESSNER, HABELER',co:'ITA / AUT',note:{pl:'Rewolucja — pierwsze 8000m w czystym alpine style.',en:'Revolution — first pure alpine 8000m ascent.',np:'मेस्नर र हेबेलरको क्रान्तिकारी।'}},alpineWinter:null},
+
+  {id:'broad-peak',rank:12,names:{pl:'BROAD PEAK',en:'BROAD PEAK',np:'ब्रड पिक'},elev:8051,lat:35.8108,lng:76.5647,loc:{pl:'PAKISTAN / CHINY',en:'PAKISTAN / CHINA',np:'पाकिस्तान / चीन'},
+    summer:{yr:1957,cl:'WINTERSTELLER, SCHMUCK, DIEMBERGER, BUHL',co:'AUSTRIA',st:'alpine',ox:'no',note:{pl:'Czyste alpine — 4 osoby, zero lin, zero O₂.',en:'Pure alpine — 4 climbers, zero ropes, zero O₂.',np:'शुद्ध अल्पाइन।'}},
+    winter:{yr:2013,cl:'BERBEKA, KOWALSKI, BIELECKI, MAŁEK',co:'POLSKA',st:'expedition',ox:'no',note:{pl:'Berbeka i Kowalski zginęli podczas zejścia.',en:'Berbeka and Kowalski died on descent.',np:'बेरबेका र कोवाल्स्की मारिए।'}},
+    alpine:{yr:1957,note:{pl:'Pierwsze wejście = pełny alpine style.',en:'First ascent = full alpine style.',np:'पहिलो आरोहण अल्पाइन।'}},alpineWinter:null},
+
+  {id:'gasherbrum-ii',rank:13,names:{pl:'GASHERBRUM II',en:'GASHERBRUM II',np:'गाशेरब्रुम II'},elev:8035,lat:35.7578,lng:76.6531,loc:{pl:'PAKISTAN / CHINY',en:'PAKISTAN / CHINA',np:'पाकिस्तान / चीन'},
+    summer:{yr:1956,cl:'MORAVEC, LARCH, WILLENPART',co:'AUSTRIA',st:'expedition',ox:'no'},
+    winter:{yr:2011,cl:'MORO, URUBKO, RICHARDS',co:'ITA / KAZ / USA',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
+
+  {id:'shishapangma',rank:14,names:{pl:'SHISHAPANGMA',en:'SHISHAPANGMA',np:'शिशापाङमा'},alt:'GOSAINTHAN',elev:8027,lat:28.3525,lng:85.7786,loc:{pl:'CHINY (TYBET)',en:'CHINA (TIBET)',np:'चीन (तिब्बत)'},
+    summer:{yr:1964,cl:'XU JING +TEAM',co:'CHINY',st:'expedition',ox:'no'},
+    winter:{yr:2005,cl:'MORAWSKI, MORO',co:'POLSKA / WŁOCHY',st:'expedition',ox:'no'},alpine:null,alpineWinter:null},
 ];
 
-// ─── STATE ──────────────────────────────────────────────────────────────────
-let activePeak = null;
-let activeFilter = 'all';
+const CITIES=[
+  {id:'kathmandu',name:'KATHMANDU',lat:27.7172,lng:85.3240},
+  {id:'new-delhi',name:'NEW DELHI',lat:28.6139,lng:77.2090},
+];
 
-// ─── FILTER ─────────────────────────────────────────────────────────────────
-function setFilter(f) {
-  activeFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
-  updateMarkers();
-  if (activePeak) closePanel();
+// ══ STATE ════════════════════════════════════════════════════════════════════
+let activePeak=null,activeFilter='all',curT=d3.zoomIdentity;
+
+function setFilter(f){activeFilter=f;document.querySelectorAll('.fbtn').forEach(b=>b.classList.toggle('active',b.dataset.filter===f));updateVisibility();if(activePeak)closePanel();}
+function peakVis(p){if(activeFilter==='all')return true;if(activeFilter==='summer')return!!p.summer;if(activeFilter==='winter')return!!p.winter;if(activeFilter==='alpine')return!!p.alpine;if(activeFilter==='open')return!p.alpineWinter;return true;}
+
+// ══ LANDING STARS ═══════════════════════════════════════════════════════════
+(function(){
+  const c=document.getElementById('landing-stars');
+  for(let i=0;i<180;i++){
+    const s=document.createElement('div');
+    const sz=Math.random()<.1?2:1;
+    Object.assign(s.style,{position:'absolute',width:sz+'px',height:sz+'px',borderRadius:'50%',
+      background:`rgba(255,255,255,${.2+Math.random()*.6})`,
+      left:(Math.random()*100)+'%',top:(Math.random()*100)+'%'});
+    c.appendChild(s);
+  }
+})();
+
+// ══ MAP INIT ════════════════════════════════════════════════════════════════
+const mapSvg=d3.select('#map-svg');
+const mapSec=document.getElementById('map-sec');
+let W=mapSec.clientWidth,H=mapSec.clientHeight;
+const proj=d3.geoMercator().center([82,30]).scale(Math.min(W,H)*2.3).translate([W/2,H/2]);
+const gp=d3.geoPath().projection(proj);
+const root=mapSvg.append('g');
+
+root.append('path').datum({type:'Sphere'}).attr('class','sphere').attr('d',gp);
+root.append('path').datum(d3.geoGraticule()()).attr('class','graticule').attr('d',gp);
+
+const hiIds=new Set(['356','524','586','156','050','004','762','417']);
+let worldData=null;
+
+function initMap(world){
+  worldData=world;
+  root.selectAll('.country')
+    .data(topojson.feature(world,world.objects.countries).features)
+    .join('path').attr('class',d=>'country'+(hiIds.has(String(d.id))?' country-hi':'')).attr('d',gp);
+  buildGeoMarkers();
+  rebuildCards();
 }
 
-function peakMatchesFilter(p) {
-  if (activeFilter === 'all') return true;
-  if (activeFilter === 'summer') return !!p.summer;
-  if (activeFilter === 'winter') return !!p.winter;
-  if (activeFilter === 'alpine') return !!p.alpine;
-  if (activeFilter === 'open') return !p.alpineWinter;
-  return true;
-}
-
-function getPeakColor(p) {
-  if (activeFilter === 'winter' && p.winter) return 'var(--achieved-winter)';
-  if (activeFilter === 'alpine' && p.alpine) return 'var(--achieved-alpine)';
-  if (activeFilter === 'open') return 'var(--open)';
-  if (activeFilter === 'summer' && p.summer) return 'var(--achieved-summer)';
-  // default: show main category
-  if (p.alpine?.year === p.summer?.year) return 'var(--achieved-alpine)';
-  return 'var(--achieved-summer)';
-}
-
-// ─── MAP ────────────────────────────────────────────────────────────────────
-const svg = d3.select('#map');
-const mapContainer = document.getElementById('map-container');
-let W = mapContainer.clientWidth, H = mapContainer.clientHeight;
-
-const projection = d3.geoMercator()
-  .center([82, 30])
-  .scale(Math.min(W, H) * 2.2)
-  .translate([W / 2, H / 2]);
-
-const path = d3.geoPath().projection(projection);
-const g = svg.append('g');
-
-// Graticule
-const grat = d3.geoGraticule()();
-g.append('path').datum(grat).attr('class', 'graticule').attr('d', path);
-
-// Load world topology
-fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-  .then(r => r.json())
-  .then(world => {
-    const countries = topojson.feature(world, world.objects.countries);
-    g.selectAll('.country')
-      .data(countries.features)
-      .join('path')
-      .attr('class', d => {
-        const highlightIds = ['356', '524', '586', '156', '050', '051', '050']; // India, Nepal, Pakistan, China, Bangladesh, Afghanistan
-        return 'country' + (highlightIds.includes(d.id?.toString()) ? ' country-highlight' : '');
-      })
-      .attr('d', path);
-    drawPeaks();
-  })
-  .catch(() => {
-    // Fallback if fetch fails
-    drawPeaks();
+// ══ GEO MARKERS ═════════════════════════════════════════════════════════════
+function buildGeoMarkers(){
+  const cg=root.append('g');
+  CITIES.forEach(c=>{
+    const[cx,cy]=proj([c.lng,c.lat]);
+    const g=cg.append('g').attr('transform',`translate(${cx},${cy})`).attr('pointer-events','none');
+    g.append('polygon').attr('points','0,-5 4,2 0,5 -4,2').attr('fill','rgba(77,184,255,.45)').attr('stroke','rgba(77,184,255,.7)').attr('stroke-width',.8);
+    g.append('text').attr('dy',-8).attr('text-anchor','middle').attr('font-family',"'Space Mono',monospace").attr('font-size',8).attr('fill','rgba(77,184,255,.55)').attr('letter-spacing','.08em').text(c.name);
   });
-
-const tooltip = document.getElementById('map-tooltip');
-
-function drawPeaks() {
-  const markerG = g.append('g').attr('class', 'peaks-layer');
-
-  PEAKS.forEach(p => {
-    const [px, py] = projection([p.lng, p.lat]);
-    const pg = markerG.append('g')
-      .attr('class', 'peak-marker')
-      .attr('transform', `translate(${px},${py})`)
-      .attr('data-id', p.id);
-
-    // Pulse ring for open alpine winter
-    pg.append('circle')
-      .attr('class', 'peak-pulse')
-      .attr('r', 14)
-      .attr('fill', 'rgba(212,32,26,0.15)')
-      .attr('stroke', 'none');
-
-    // Outer ring
-    pg.append('circle')
-      .attr('class', 'peak-outer')
-      .attr('r', 9)
-      .attr('fill', 'rgba(212,84,26,0.08)')
-      .attr('stroke', 'var(--open)')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', p.isMain ? 'none' : '3 2');
-
-    // Inner dot
-    pg.append('circle')
-      .attr('r', 5)
-      .attr('fill', p.isMain ? 'var(--orange-glow)' : 'var(--achieved-summer)')
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 1);
-
-    // Label
-    pg.append('text')
-      .attr('class', 'peak-label')
-      .attr('dy', -14)
-      .text(p.rank + '. ' + p.names.pl);
-
-    // Interactions
-    pg.on('click', () => openPanel(p))
-      .on('mousemove', (e) => {
-        document.getElementById('tt-name').textContent = p.names[lang] + ' (' + p.elevation + ' m)';
-        document.getElementById('tt-elev').textContent = p.location[lang];
-        const rect = mapContainer.getBoundingClientRect();
-        tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
-        tooltip.style.top = (e.clientY - rect.top - 40) + 'px';
-        tooltip.style.opacity = 1;
-      })
-      .on('mouseleave', () => { tooltip.style.opacity = 0; });
-  });
-  updateMarkers();
-}
-
-function updateMarkers() {
-  d3.selectAll('.peak-marker').each(function(d, i) {
-    const el = d3.select(this);
-    const pid = this.getAttribute('data-id');
-    const p = PEAKS.find(x => x.id === pid);
-    if (!p) return;
-    const visible = peakMatchesFilter(p);
-    el.style('opacity', visible ? 1 : 0.2);
-    el.select('.peak-pulse').style('display', activeFilter === 'open' ? 'block' : 'none');
-    el.select('.peak-label').text(p.rank + '. ' + p.names[lang]);
+  const mg=root.append('g').attr('class','mks');
+  PEAKS.forEach(p=>{
+    const[px,py]=proj([p.lng,p.lat]);
+    const g=mg.append('g').attr('class','peak-g').attr('transform',`translate(${px},${py})`).attr('data-id',p.id);
+    const col=p.isMain?'#ff2b2b':'rgba(77,184,255,.6)';
+    g.append('circle').attr('class','ret-pulse').attr('r',10).attr('stroke',col).attr('fill','none');
+    g.append('circle').attr('class','ret-ring').attr('r',9).attr('stroke',col).attr('fill','none');
+    [[-14,-6],[6,14]].forEach(([a,b])=>g.append('line').attr('x1',a).attr('x2',b).attr('y1',0).attr('y2',0).attr('class','ret-arm').attr('stroke',col));
+    [[-14,-6],[6,14]].forEach(([a,b])=>g.append('line').attr('x1',0).attr('x2',0).attr('y1',a).attr('y2',b).attr('class','ret-arm').attr('stroke',col));
+    g.append('circle').attr('r',3).attr('fill',p.isMain?'#ff2b2b':'#4db8ff');
+    const tipEl=document.getElementById('tip');
+    g.on('click',()=>openPanel(p))
+     .on('mousemove',e=>{
+       document.getElementById('tn').textContent=p.names[lang]+' — '+p.elev.toLocaleString()+' M';
+       document.getElementById('ts2').textContent=cs(p.lat,'NS')+' '+cs(p.lng,'EW');
+       const r=mapSec.getBoundingClientRect();
+       tipEl.style.left=(e.clientX-r.left+14)+'px';tipEl.style.top=(e.clientY-r.top-52)+'px';tipEl.style.opacity=1;
+       document.getElementById('c-lat').textContent=cs(p.lat,'NS');
+       document.getElementById('c-lng').textContent=cs(p.lng,'EW');
+       document.getElementById('c-pk').textContent=p.names[lang];
+     }).on('mouseleave',()=>{
+       tipEl.style.opacity=0;
+       document.getElementById('c-lat').textContent='—';document.getElementById('c-lng').textContent='—';document.getElementById('c-pk').textContent='';
+     });
   });
 }
 
-// Zoom
-const zoom = d3.zoom().scaleExtent([0.5, 8]).on('zoom', e => g.attr('transform', e.transform));
-svg.call(zoom);
-
-window.addEventListener('resize', () => {
-  W = mapContainer.clientWidth; H = mapContainer.clientHeight;
-  projection.translate([W / 2, H / 2]).scale(Math.min(W, H) * 2.2);
-  g.selectAll('path').attr('d', path);
-  // Redraw peaks
-  g.select('.peaks-layer').remove();
-  drawPeaks();
-});
-
-// ─── PANEL ──────────────────────────────────────────────────────────────────
-function openPanel(p) {
-  activePeak = p;
-  document.getElementById('panel-peak-name').textContent = p.names[lang];
-  document.getElementById('panel-peak-name-native').textContent = [p.names.np !== p.names[lang] ? p.names.np : '', p.altName || ''].filter(Boolean).join(' · ');
-  document.getElementById('panel-elevation').textContent = p.elevation.toLocaleString() + ' ' + t('elevation');
-  document.getElementById('panel-location').textContent = p.location[lang];
-
-  const body = document.getElementById('panel-body');
-  body.innerHTML = '';
-
-  const categories = [
-    { key: 'summer', label: t('cat-summer'), color: 'var(--achieved-summer)', data: p.summer, badgeClass: 'badge-done' },
-    { key: 'winter', label: t('cat-winter'), color: 'var(--achieved-winter)', data: p.winter, badgeClass: 'badge-winter' },
-    { key: 'alpine', label: t('cat-alpine'), color: 'var(--achieved-alpine)', data: p.alpine, badgeClass: 'badge-alpine' },
-    { key: 'alpineWinter', label: t('cat-alpine-winter'), color: 'var(--open)', data: p.alpineWinter, badgeClass: 'badge-open', alwaysShow: true }
-  ];
-
-  categories.forEach(cat => {
-    if (!cat.data && !cat.alwaysShow) return;
-    const block = document.createElement('div');
-    block.className = 'category-block';
-
-    const header = document.createElement('div');
-    header.className = 'cat-header';
-    header.innerHTML = `<div class="cat-dot" style="background:${cat.color}"></div><div class="cat-title">${cat.label}</div>`;
-
-    if (cat.data) {
-      const badge = document.createElement('span');
-      badge.className = 'cat-badge ' + cat.badgeClass;
-      badge.textContent = cat.key === 'winter' ? t('done') : t('done');
-      if (cat.key === 'alpine') badge.textContent = cat.data.year;
-      header.appendChild(badge);
-    } else {
-      const badge = document.createElement('span');
-      badge.className = 'cat-badge badge-open';
-      badge.textContent = t('open');
-      header.appendChild(badge);
-    }
-    block.appendChild(header);
-
-    if (cat.data) {
-      if (cat.data.year) addRow(block, t('year'), cat.data.year);
-      if (cat.data.climbers) addRow(block, t('climbers'), cat.data.climbers);
-      if (cat.data.country) addRow(block, t('country'), cat.data.country);
-      if (cat.data.style) addRow(block, t('style'), t(cat.data.style));
-      if (cat.data.oxygen) addRow(block, t('oxygen'), t(cat.data.oxygen));
-      if (cat.data.note) {
-        const note = document.createElement('div');
-        note.className = 'detail-note';
-        note.textContent = typeof cat.data.note === 'string' ? cat.data.note : (cat.data.note[lang] || cat.data.note.pl);
-        block.appendChild(note);
-      }
-    } else if (cat.alwaysShow) {
-      const ob = document.createElement('div');
-      ob.className = 'open-block';
-      ob.innerHTML = `<div class="open-label">⬤ ${t('open')}</div><div class="open-desc">${
-        lang === 'pl' ? 'Nikt nie wszedł na ten szczyt w stylu alpejskim zimą. Ta kategoria pozostaje otwarta na wszystkich 14 ośmiotysięcznikach.' :
-        lang === 'en' ? 'No one has summited this peak in alpine style during winter. This category remains open on all 14 eight-thousanders.' :
-        'कुनै पनि व्यक्तिले यो शिखरमा हिउँदमा अल्पाइन शैलीमा आरोहण गरेका छैनन्।'
-      }</div>`;
-      block.appendChild(ob);
-    }
-    body.appendChild(block);
+function updateVisibility(){
+  root.selectAll('.peak-g').each(function(){
+    const p=PEAKS.find(x=>x.id===this.getAttribute('data-id'));if(!p)return;
+    const v=peakVis(p);
+    d3.select(this).style('opacity',v?1:.12);
+    const pulse=activeFilter==='open';
+    d3.select(this).select('.ret-pulse').attr('class',pulse?'ret-pulse':'').attr('stroke',pulse?(p.isMain?'#ff2b2b':'rgba(77,184,255,.5)'):'transparent');
   });
+  document.querySelectorAll('.pcard').forEach(c=>{const p=PEAKS.find(x=>x.id===c.dataset.id);c.style.opacity=(p&&peakVis(p)&&c.classList.contains('show'))?1:.15;});
+  updateCardPositions(curT);drawLeaders(curT);
+}
 
+// ══ FLOATING CARDS ══════════════════════════════════════════════════════════
+function rebuildCards(){
+  document.querySelectorAll('.pcard').forEach(c=>c.remove());
+  PEAKS.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='pcard'+(p.isMain?' is-main':'')+(activePeak?.id===p.id?' selected':'');
+    div.dataset.id=p.id;
+    div.style.left='-999px';div.style.top='-999px';
+    div.innerHTML=`
+      <div class="pc-top"><span class="pc-rank">#${p.rank}</span><span class="pc-name${p.isMain?' main':''}">${p.names[lang]}</span></div>
+      <div class="pc-elev">${p.elev.toLocaleString()} M${p.alt?' · '+p.alt:''}</div>
+      <div class="pc-dots">
+        <div class="ds ${p.summer?'on':'off'}"></div><div class="dw ${p.winter?'on':'off'}"></div>
+        <div class="da ${p.alpine?'on':'off'}"></div><div class="daw"></div>
+        <span class="dlbl">S·W·A·AW</span>
+      </div>`;
+    div.onclick=()=>openPanel(p);
+    mapSec.appendChild(div);
+  });
+  requestAnimationFrame(()=>{updateCardPositions(curT);drawLeaders(curT);});
+}
+
+function updateCardPositions(transform){
+  PEAKS.forEach(p=>{
+    const card=document.querySelector(`.pcard[data-id="${p.id}"]`);if(!card)return;
+    const[gx,gy]=proj([p.lng,p.lat]);
+    const[sx,sy]=transform.apply([gx,gy]);
+    const off=OFFSETS[p.id]||{dx:18,dy:-50};
+    const cw=card.offsetWidth||144,ch=card.offsetHeight||62;
+    card.style.left=(off.dx<0?sx+off.dx-cw:sx+off.dx)+'px';
+    card.style.top =(off.dy<0?sy+off.dy-ch:sy+off.dy)+'px';
+  });
+}
+
+// ══ LEADER LINES ════════════════════════════════════════════════════════════
+function drawLeaders(transform){
+  const lsvg=document.getElementById('leader-svg');lsvg.innerHTML='';
+  PEAKS.forEach(p=>{
+    const card=document.querySelector(`.pcard[data-id="${p.id}"]`);if(!card)return;
+    const mr=mapSec.getBoundingClientRect(),cr=card.getBoundingClientRect();
+    const cx=cr.left-mr.left+cr.width/2,cy=cr.top-mr.top+cr.height/2;
+    const[gx,gy]=proj([p.lng,p.lat]);const[mx,my]=transform.apply([gx,gy]);
+    const dx=mx-cx,dy=my-cy,hw=cr.width/2+1,hh=cr.height/2+1;
+    let ax,ay;
+    if(Math.abs(dx)*hh>Math.abs(dy)*hw){ax=cx+(dx>0?hw:-hw);ay=cy+dy*(hw/Math.abs(dx));}
+    else{ax=cx+dx*(hh/Math.abs(dy));ay=cy+(dy>0?hh:-hh);}
+    const vis=peakVis(p),sc=p.isMain?'rgba(255,43,43,':'rgba(77,184,255,';
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',ax);line.setAttribute('y1',ay);line.setAttribute('x2',mx);line.setAttribute('y2',my);
+    line.setAttribute('stroke',sc+(vis?.35:.07)+')');line.setAttribute('stroke-width','.8');
+    lsvg.appendChild(line);
+    const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',mx);dot.setAttribute('cy',my);dot.setAttribute('r','2');
+    dot.setAttribute('fill',sc+(vis?.55:.1)+')');
+    lsvg.appendChild(dot);
+  });
+}
+
+// ══ PANEL ════════════════════════════════════════════════════════════════════
+function openPanel(p){
+  activePeak=p;
+  document.querySelectorAll('.pcard').forEach(c=>c.classList.toggle('selected',c.dataset.id===p.id));
+  document.getElementById('pname').textContent=p.names[lang];
+  document.getElementById('palt').textContent=[p.alt,p.names.np!==p.names[lang]?p.names.np:''].filter(Boolean).join(' // ');
+  document.getElementById('p-el').textContent=p.elev.toLocaleString()+' '+t('els');
+  document.getElementById('p-lo').textContent=p.loc[lang];
+  document.getElementById('p-co').textContent=cs(p.lat,'NS')+' '+cs(p.lng,'EW');
+  renderPanel(p);
   document.getElementById('panel').classList.add('open');
 }
+function renderPanel(p){
+  const body=document.getElementById('pbody');body.innerHTML='';
+  [{key:'summer',lb:t('cats'),col:'#4db8ff',data:p.summer,bc:'bok'},
+   {key:'winter',lb:t('catw'),col:'#7ee3ff',data:p.winter,bc:'bw'},
+   {key:'alpine',lb:t('cata'),col:'#7be850',data:p.alpine,bc:'ba'},
+   {key:'aw',lb:t('cataw'),col:'#ff2b2b',data:p.alpineWinter,bc:'bop',always:true}
+  ].forEach(cat=>{
+    if(!cat.data&&!cat.always)return;
+    const sec=document.createElement('div');sec.className='csec';
+    const head=document.createElement('div');head.className='chead';
+    head.innerHTML=`<div class="cdot" style="background:${cat.col}"></div><div class="clbl">${cat.lb}</div>`;
+    const badge=document.createElement('span');badge.className='cbadge '+(cat.data?cat.bc:'bop');
+    badge.textContent=cat.data?t('done'):t('open');head.appendChild(badge);sec.appendChild(head);
+    if(cat.data){
+      if(cat.data.yr)addRow(sec,t('yr'),cat.data.yr);
+      if(cat.data.cl)addRow(sec,t('cl'),cat.data.cl);
+      if(cat.data.co)addRow(sec,t('co'),cat.data.co);
+      if(cat.data.st)addRow(sec,t('st'),t(cat.data.st==='expedition'?'exp':'alp'));
+      if(cat.data.ox)addRow(sec,t('ox'),t(cat.data.ox));
+      if(cat.data.note){const nb=document.createElement('div');nb.className='nbox';nb.textContent=typeof cat.data.note==='string'?cat.data.note:(cat.data.note[lang]||cat.data.note.pl);sec.appendChild(nb);}
+    }else if(cat.always){
+      const ob=document.createElement('div');ob.className='otgt';
+      ob.innerHTML=`<div class="otl">⬤ TARGET OPEN</div><div class="otd">${t('odesc')}</div>`;sec.appendChild(ob);
+    }
+    body.appendChild(sec);
+  });
+}
+function addRow(p,k,v){const r=document.createElement('div');r.className='drow';r.innerHTML=`<div class="dky">${k}</div><div class="dval">${v}</div>`;p.appendChild(r);}
+function closePanel(){activePeak=null;document.getElementById('panel').classList.remove('open');document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('selected'));}
 
-function addRow(parent, key, val) {
-  const row = document.createElement('div');
-  row.className = 'detail-row';
-  row.innerHTML = `<div class="detail-key">${key}</div><div class="detail-val">${val}</div>`;
-  parent.appendChild(row);
+// ══ HELPERS ══════════════════════════════════════════════════════════════════
+function cs(v,dirs){const d=dirs[v>=0?0:1],a=Math.abs(v);return`${Math.floor(a)}°${String(Math.floor((a-Math.floor(a))*60)).padStart(2,'0')}'${d}`;}
+
+// ══ GLOBE SEQUENCE ═══════════════════════════════════════════════════════════
+async function startSequence(){
+  document.getElementById('btn-start').disabled=true;
+
+  // Load world data (reuse if already loaded)
+  if(!worldData){
+    worldData=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r=>r.json());
+  }
+
+  // Fade out landing, show globe
+  document.getElementById('landing').classList.add('out');
+  setTimeout(()=>{
+    document.getElementById('globe-layer').classList.add('show');
+    runGlobe();
+  },700);
 }
 
-function closePanel() {
-  activePeak = null;
-  document.getElementById('panel').classList.remove('open');
+function runGlobe(){
+  const gsvg=d3.select('#globe-svg');
+  const gw=window.innerWidth,gh=window.innerHeight;
+  const initScale=Math.min(gw,gh)*0.36;
+
+  const globeProj=d3.geoOrthographic()
+    .scale(initScale).translate([gw/2,gh/2]).clipAngle(90).rotate([-30,-15]);
+
+  const globePath=d3.geoPath().projection(globeProj);
+  const countries=topojson.feature(worldData,worldData.objects.countries);
+
+  // Defs: atmosphere glow + cloud sphere
+  const defs=gsvg.append('defs');
+  const atmo=defs.append('radialGradient').attr('id','atmo').attr('cx','50%').attr('cy','50%').attr('r','52%');
+  atmo.append('stop').attr('offset','68%').attr('stop-color','transparent');
+  atmo.append('stop').attr('offset','100%').attr('stop-color','rgba(77,184,255,.18)');
+
+  // Ocean sphere
+  const ocean=gsvg.append('circle')
+    .attr('cx',gw/2).attr('cy',gh/2).attr('r',initScale)
+    .attr('fill','#04111e').attr('stroke','rgba(77,184,255,.1)').attr('stroke-width','1.5');
+
+  // Atmosphere
+  const atmoEl=gsvg.append('circle')
+    .attr('cx',gw/2).attr('cy',gh/2).attr('r',initScale+18)
+    .attr('fill','url(#atmo)').attr('pointer-events','none');
+
+  // Graticule
+  const gratPath=gsvg.append('path').datum(d3.geoGraticule()())
+    .attr('fill','none').attr('stroke','rgba(77,184,255,.07)').attr('stroke-width',.5);
+
+  // Countries
+  const lands=gsvg.append('g').selectAll('path')
+    .data(countries.features).join('path')
+    .attr('fill','#0d2035').attr('stroke','rgba(77,184,255,.28)').attr('stroke-width',.6);
+
+  // Highlight target region (Himalayan countries)
+  const hiSet=new Set(['356','524','586','156','050']);
+  gsvg.append('g').selectAll('path')
+    .data(countries.features.filter(d=>hiSet.has(String(d.id)))).join('path')
+    .attr('fill','#143050').attr('stroke','rgba(77,184,255,.5)').attr('stroke-width',.8);
+
+  function redraw(){
+    const r=globeProj.scale();
+    ocean.attr('r',r);atmoEl.attr('r',r+18);
+    gratPath.attr('d',globePath);
+    lands.attr('d',globePath);
+    gsvg.selectAll('.hi-lands').attr('d',globePath);
+  }
+
+  // ── Animation ──────────────────────────────────────────────────────────
+  // Phase 1: rotate to Nepal (2.2s)
+  // Phase 2: zoom in fast (1.8s)
+  // Phase 3: crossfade to flat map
+  const rotFrom=[-30,-15], rotTo=[-82,-28];
+  const scaleFrom=initScale, scaleTo=Math.min(gw,gh)*3.5;
+  const t0=performance.now();
+  const rotDur=2200, zoomStart=1800, zoomDur=1800, totalDur=3700;
+
+  function frame(now){
+    const el=now-t0;
+
+    // Rotation
+    const rt=Math.min(1,el/rotDur);
+    const re=d3.easeCubicInOut(rt);
+    globeProj.rotate([
+      rotFrom[0]+(rotTo[0]-rotFrom[0])*re,
+      rotFrom[1]+(rotTo[1]-rotFrom[1])*re,
+    ]);
+
+    // Zoom
+    if(el>zoomStart){
+      const zt=Math.min(1,(el-zoomStart)/zoomDur);
+      const ze=d3.easeCubicIn(zt);
+      globeProj.scale(scaleFrom+(scaleTo-scaleFrom)*ze);
+    }
+
+    redraw();
+
+    if(el<totalDur){requestAnimationFrame(frame);}
+    else{transitionToMap();}
+  }
+  requestAnimationFrame(frame);
 }
 
-// ─── INIT ───────────────────────────────────────────────────────────────────
+function transitionToMap(){
+  // Fade globe out, app in
+  document.getElementById('globe-layer').classList.add('out');
+  const app=document.getElementById('app');
+  app.classList.add('show');
+
+  // Stagger cards in after 1.2s
+  setTimeout(()=>{
+    const cards=[...document.querySelectorAll('.pcard')];
+    cards.forEach((c,i)=>setTimeout(()=>c.classList.add('show'),i*60));
+    // Leader lines after all cards
+    setTimeout(()=>document.getElementById('leader-svg').classList.add('show'),cards.length*60+300);
+  },1200);
+}
+
+// ══ LOAD & INIT ══════════════════════════════════════════════════════════════
+// Pre-fetch world data in background so click is fast
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+  .then(r=>r.json()).then(w=>{worldData=w;initMap(w);}).catch(()=>initMap(null));
+
 applyI18n();
 </script>
 </body>
